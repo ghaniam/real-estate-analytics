@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36518.9
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RealEstateAnalytics.Api", "src\RealEstateAnalytics.Api\RealEstateAnalytics.Api.csproj", "{7E2E1362-A10C-457D-BC82-D59206C24948}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RealEstateAnalytics.Core", "src\RealEstateAnalytics.Core\RealEstateAnalytics.Core.csproj", "{FBA913F8-1772-43CC-AD89-133981EDE2AE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RealEstateAnalytics.Core", "RealEstateAnalytics.Core\RealEstateAnalytics.Core.csproj", "{FBA913F8-1772-43CC-AD89-133981EDE2AE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RealEstateAnalytics.DataProvider", "src\RealEstateAnalytics.DataProvider\RealEstateAnalytics.DataProvider.csproj", "{1A2935F7-7CF5-4B14-BC8D-4552F5EE2098}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RealEstateAnalytics.DataProvider", "RealEstateAnalytics.DataProvider\RealEstateAnalytics.DataProvider.csproj", "{1A2935F7-7CF5-4B14-BC8D-4552F5EE2098}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RealEstateAnalytics.Api", "src\RealEstateAnalytics.Api\RealEstateAnalytics.Api.csproj", "{B5245536-261A-3C4C-FD02-02195B26B79E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,10 +15,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{7E2E1362-A10C-457D-BC82-D59206C24948}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7E2E1362-A10C-457D-BC82-D59206C24948}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7E2E1362-A10C-457D-BC82-D59206C24948}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7E2E1362-A10C-457D-BC82-D59206C24948}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FBA913F8-1772-43CC-AD89-133981EDE2AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FBA913F8-1772-43CC-AD89-133981EDE2AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FBA913F8-1772-43CC-AD89-133981EDE2AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -27,6 +23,10 @@ Global
 		{1A2935F7-7CF5-4B14-BC8D-4552F5EE2098}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1A2935F7-7CF5-4B14-BC8D-4552F5EE2098}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1A2935F7-7CF5-4B14-BC8D-4552F5EE2098}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5245536-261A-3C4C-FD02-02195B26B79E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5245536-261A-3C4C-FD02-02195B26B79E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5245536-261A-3C4C-FD02-02195B26B79E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5245536-261A-3C4C-FD02-02195B26B79E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

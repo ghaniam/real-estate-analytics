@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using RealEstateAnalytics.Api.DataProvider;
+using RealEstateAnalytics.Core.Interfaces;
 
 namespace RealEstateAnalytics.Api.Controllers;
 
@@ -10,7 +10,7 @@ public class ListingController(IListingProvider listingProvider) : ControllerBas
     [HttpGet]
     public async Task<IActionResult> GetProperties([FromQuery] int page = 1)
     {
-        var result = await listingProvider.GetPropertiesAsync(page);
+        var result = await listingProvider.GetListingAsync(page);
         return Ok(result);
     }
 }

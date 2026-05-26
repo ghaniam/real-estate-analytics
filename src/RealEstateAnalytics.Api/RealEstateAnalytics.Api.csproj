@@ -14,7 +14,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\RealEstateAnalytics.Core\RealEstateAnalytics.Core.csproj" />
+    <ProjectReference Include="..\RealEstateAnalytics.Core\RealEstateAnalytics.Core.csproj" />
+    <ProjectReference Include="..\RealEstateAnalytics.DataProvider\RealEstateAnalytics.DataProvider.csproj" />
   </ItemGroup>
 
 </Project>

@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace RealEstateAnalytics.DataProvider.Models;
 
-public class FundaResponseDto
+public class PartnerResponseDto
 {
     [JsonPropertyName("Objects")]
     public List<PartnerResidentialObjectDto> Objects { get; set; } = [];

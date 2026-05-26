@@ -1,20 +1,20 @@
 using Microsoft.Extensions.Options;
-using RealEstateAnalytics.Api.DataProvider;
+using RealEstateAnalytics.Core.Interfaces;
 using RealEstateAnalytics.Core.Configuration;
 using RealEstateAnalytics.Core.Models;
 using RealEstateAnalytics.DataProvider.Models;
 using System.Net.Http.Json;
 
-namespace RealEstateAnalytics.Api.Services;
+namespace RealEstateAnalytics.DataProvider.Services;
 
 public class ListingProvider(HttpClient httpClient, IOptions<PartnerApiOptions> options) : IListingProvider
 {
     private readonly PartnerApiOptions _options = options.Value;
 
-    public async Task<PagedResultModel<ResidentialObjectModel>> GetPropertiesAsync(int page = 1)
+    public async Task<PagedResultModel<ResidentialObjectModel>> GetListingAsync(int page = 1)
     {
-        var url = $"{_options.ApiKey}/?type={_options.SearchType}&zo={_options.SearchZone}&page={page}&pagesize={_options.PageSize}";
-        var response = await httpClient.GetFromJsonAsync<FundaResponseDto>(url);
+        var url = $"{_options.BaseUrl}{_options.ApiKey}/?type={_options.SearchType}&zo={_options.SearchZone}&page={page}&pagesize={_options.PageSize}";
+        var response = await httpClient.GetFromJsonAsync<PartnerResponseDto>(url);
 
         if (response is null)
             return new PagedResultModel<ResidentialObjectModel>();

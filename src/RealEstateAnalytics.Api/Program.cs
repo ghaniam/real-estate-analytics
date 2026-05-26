@@ -1,20 +1,11 @@
-using RealEstateAnalytics.Api.Configuration;
-using RealEstateAnalytics.Api.Services;
+using RealEstateAnalytics.DataProvider;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-builder.Services.Configure<ExternalApiOptions>(
-    builder.Configuration.GetSection(ExternalApiOptions.SectionName));
-
-builder.Services.AddHttpClient<IPropertyService, PropertyService>(client =>
-{
-    var baseUrl = builder.Configuration[$"{ExternalApiOptions.SectionName}:BaseUrl"]
-        ?? "http://partnerapi.funda.nl/feeds/Aanbod.svc/json/";
-    client.BaseAddress = new Uri(baseUrl);
-});
+builder.Services.AddDataProvider(builder.Configuration);
 
 builder.Services.AddCors(opts =>
     opts.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
