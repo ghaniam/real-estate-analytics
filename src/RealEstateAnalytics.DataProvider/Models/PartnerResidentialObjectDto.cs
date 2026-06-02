@@ -17,7 +17,7 @@ public class PartnerResidentialObjectDto
     public string? ListingUrl { get; set; }
 
     [JsonPropertyName("MakelaarId")]
-    public string? AgentId { get; set; }
+    public int? AgentId { get; set; }
 
     [JsonPropertyName("MakelaarNaam")]
     public string? AgentName { get; set; }

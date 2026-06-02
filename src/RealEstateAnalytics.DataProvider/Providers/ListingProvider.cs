@@ -5,27 +5,24 @@ using RealEstateAnalytics.Core.Models;
 using RealEstateAnalytics.DataProvider.Models;
 using System.Net.Http.Json;
 
-namespace RealEstateAnalytics.DataProvider.Services;
+namespace RealEstateAnalytics.DataProvider.Providers;
 
-public class ListingProvider(HttpClient httpClient, IOptions<PartnerApiOptions> options) : IListingProvider
+public class ListingProvider(HttpClient httpClient, IOptions<PartnerApiConfiguration> options) : IListingProvider
 {
-    private readonly PartnerApiOptions _options = options.Value;
+    private readonly PartnerApiConfiguration _options = options.Value;
 
-    public async Task<PagedResultModel<ResidentialObjectModel>> GetListingAsync(int page = 1)
+    public async Task<PagedResultModel<ResidentialObjectModel>> GetListingAsync(ListingRequestModel listingRequestModel, CancellationToken ct = default)
     {
-        var url = $"{_options.BaseUrl}{_options.ApiKey}/?type={_options.SearchType}&zo={_options.SearchZone}&page={page}&pagesize={_options.PageSize}";
-        var response = await httpClient.GetFromJsonAsync<PartnerResponseDto>(url);
-
-        if (response is null)
-            return new PagedResultModel<ResidentialObjectModel>();
-
-        return new PagedResultModel<ResidentialObjectModel>
+        var fullSearchQuery = $"{listingRequestModel.Area}/{listingRequestModel.SearchQuery}";
+        var url = $"{_options.BaseUrl}{_options.ApiKey}/?type={listingRequestModel.Type}&zo={fullSearchQuery}&page={listingRequestModel.PageNumber}&pagesize={_options.PageSize}";
+        var response = await httpClient.GetFromJsonAsync<PartnerResponseDto>(url, ct);
+        return response is not null ? new PagedResultModel<ResidentialObjectModel>
         {
             Items = response.Objects.Select(MapToModel),
             CurrentPage = response.Paging.CurrentPage,
             TotalPages = response.Paging.TotalPages,
             TotalCount = response.TotalCount
-        };
+        } : new();
     }
 
     private static ResidentialObjectModel MapToModel(PartnerResidentialObjectDto source)
