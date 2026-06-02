@@ -4,6 +4,9 @@ namespace RealEstateAnalytics.DataProvider.Models;
 
 public class PartnerResidentialObjectDto
 {
+    [JsonPropertyName("Id")]
+    public Guid Id { get; set; }
+    
     [JsonPropertyName("Adres")]
     public string Address { get; set; } = string.Empty;
 

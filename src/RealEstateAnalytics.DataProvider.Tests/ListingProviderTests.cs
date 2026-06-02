@@ -7,7 +7,7 @@ using Moq.Protected;
 using RealEstateAnalytics.Core.Configuration;
 using RealEstateAnalytics.Core.Interfaces;
 using RealEstateAnalytics.Core.Models;
-using RealEstateAnalytics.DataProvider.Providers;
+using RealEstateAnalytics.DataProvider;
 
 namespace RealEstateAnalytics.DataProvider.Tests;
 
@@ -23,7 +23,7 @@ public class ListingProviderTests
         PageSize = 25
     };
 
-    private static readonly ListingRequestModel DefaultRequest = new()
+    private static readonly ListingRequestDto DefaultRequest = new()
     {
         Type = "koop",
         Area = "amsterdam",
@@ -106,7 +106,7 @@ public class ListingProviderTests
     public async Task GetListingAsync_BuildsUrlFromRequestModel()
     {
         SetupSendAsync(GetJsonString());
-        var request = new ListingRequestModel { Type = "huur", Area = "rotterdam", SearchQuery = "park", PageNumber = 3 };
+        var request = new ListingRequestDto { Type = "huur", Area = "rotterdam", SearchQuery = "park", PageNumber = 3 };
 
         await _listingProvider.GetListingAsync(request);
 

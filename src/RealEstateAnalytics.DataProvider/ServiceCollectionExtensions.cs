@@ -2,7 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstateAnalytics.Core.Configuration;
 using RealEstateAnalytics.Core.Interfaces;
-using RealEstateAnalytics.DataProvider.Providers;
+using System.Net;
+using System.Net.Http;
 
 namespace RealEstateAnalytics.DataProvider;
 
@@ -14,8 +15,13 @@ public static class ServiceCollectionExtensions
 
         services.AddHttpClient<IListingProvider, ListingProvider>(client =>
         {
-            var baseUrl = configuration[$"{PartnerApiConfiguration.SectionName}:BaseUrl"];
+            var baseUrl = configuration[$"{PartnerApiConfiguration.SectionName}:BaseUrl"]
+                ?? throw new InvalidOperationException($"Configuration key '{PartnerApiConfiguration.SectionName}:BaseUrl' is required.");
             client.BaseAddress = new Uri(baseUrl);
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
         });
 
         return services;
