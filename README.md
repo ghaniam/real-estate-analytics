@@ -1,5 +1,26 @@
 # real-estate-analytics
 
+## About
+
+Real Estate Analytics is a .NET 9 console application that queries a real estate partner API to identify which agents have the most active listings in a given area. Given a listing type, location, and optional search criteria, the application fetches all matching listings across multiple pages, groups them by agent, and prints a ranked leaderboard of agents ordered by listing count.
+
+### How it works
+
+1. The user is prompted for a listing type (e.g. `koop`, `huur`), an area, an optional search query (e.g. `tuin`, `balkon`), and how many top agents to display.
+2. The application pages through the partner API until all matching listings are collected.
+3. Listings are grouped by agent and sorted by count in descending order.
+4. The top N agents are shown with their rank and listing count.
+
+### Project structure
+
+| Project | Purpose |
+|---|---|
+| `RealEstateAnalytics.Core` | Shared interfaces, models, and configuration |
+| `RealEstateAnalytics.DataProvider` | HTTP client and mapping layer for the partner API |
+| `RealEstateAnalytics.Service` | Business logic — aggregation and ranking |
+| `RealEstateAnalytics.Console` | Interactive console entry point |
+| `RealEstateAnalytics.DataProvider.Tests` | Unit tests for the data provider layer |
+
 ## Rationale
 
 ### Paging
