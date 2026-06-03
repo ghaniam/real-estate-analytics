@@ -4,6 +4,9 @@ namespace RealEstateAnalytics.DataProvider.Models;
 
 public class PartnerResidentialObjectDto
 {
+    [JsonPropertyName("Id")]
+    public Guid Id { get; set; }
+    
     [JsonPropertyName("Adres")]
     public string Address { get; set; } = string.Empty;
 
@@ -17,7 +20,7 @@ public class PartnerResidentialObjectDto
     public string? ListingUrl { get; set; }
 
     [JsonPropertyName("MakelaarId")]
-    public string? AgentId { get; set; }
+    public int? AgentId { get; set; }
 
     [JsonPropertyName("MakelaarNaam")]
     public string? AgentName { get; set; }

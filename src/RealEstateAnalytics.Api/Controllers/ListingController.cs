@@ -10,7 +10,7 @@ public class ListingController(IListingProvider listingProvider) : ControllerBas
     [HttpGet]
     public async Task<IActionResult> GetProperties([FromQuery] int page = 1)
     {
-        var result = await listingProvider.GetListingAsync(page);
+        var result = await listingProvider.GetListingAsync(null);
         return Ok(result);
     }
 }
