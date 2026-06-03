@@ -12,10 +12,4 @@ public class PartnerPagingDto
 
     [JsonPropertyName("AantalResultaten")]
     public int ResultCount { get; set; }
-
-    [JsonPropertyName("VolgendeUrl")]
-    public string? NextUrl { get; set; }
-
-    [JsonPropertyName("VorigUrl")]
-    public string? PreviousUrl { get; set; }
 }

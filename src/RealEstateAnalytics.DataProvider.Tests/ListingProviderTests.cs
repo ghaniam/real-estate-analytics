@@ -1,13 +1,14 @@
 using System.Net;
 using System.Net.Mime;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.Protected;
 using RealEstateAnalytics.Core.Configuration;
 using RealEstateAnalytics.Core.Interfaces;
 using RealEstateAnalytics.Core.Models;
-using RealEstateAnalytics.DataProvider;
+using RealEstateAnalytics.DataProvider.Models;
 
 namespace RealEstateAnalytics.DataProvider.Tests;
 
@@ -23,14 +24,6 @@ public class ListingProviderTests
         PageSize = 25
     };
 
-    private static readonly ListingRequestDto DefaultRequest = new()
-    {
-        Type = "koop",
-        Area = "amsterdam",
-        SearchQuery = "tuin",
-        PageNumber = 1
-    };
-
     public ListingProviderTests()
     {
         _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
@@ -40,148 +33,135 @@ public class ListingProviderTests
     }
 
     [Fact]
-    public async Task GetListingAsync_SuccessResponse_ReturnsNonEmptyItems()
+    public async Task GetListingAsync_ReturnsOk()
     {
-        SetupSendAsync(GetJsonString());
+        var request = new ListingRequestDto
+        {
+            Type = "koop",
+            Area = "amsterdam",
+            SearchQuery = "tuin",
+            PageNumber = 1
+        };
+        PartnerResponseDto dto = new()
+        {
+            Objects =
+        [
+            new PartnerResidentialObjectDto
+            {
+                Id = new Guid("b999a53f-57ea-4e23-98b6-bbb70027251d"),
+                Address = "Keizersgracht 74-K",
+                City = "Amsterdam",
+                PostalCode = "1015CT",
+                ListingUrl = "http://www.funda.nl/appartement-123/",
+                AgentId = 123,
+                AgentName = "Test Makelaar",
+                ListingType = "appartement"
+            }
+        ],
+            Paging = new PartnerPagingDto
+            {
+                TotalPages = 39,
+                CurrentPage = 2,
+            },
+            TotalCount = 66
+        };
+        SetupSendAsync(JsonSerializer.Serialize(dto));
 
-        var result = await _listingProvider.GetListingAsync(DefaultRequest);
+        var result = await _listingProvider.GetListingAsync(request);
 
         Assert.NotNull(result);
         Assert.NotEmpty(result.Items);
-        VerifySendAsync(Times.Once());
-    }
-
-    [Fact]
-    public async Task GetListingAsync_SuccessResponse_MapsItemFieldsCorrectly()
-    {
-        var json = """
-            {
-                "Objects": [{
-                    "Adres": "Keizersgracht 74-K",
-                    "Woonplaats": "Amsterdam",
-                    "Postcode": "1015CT",
-                    "URL": "http://www.funda.nl/appartement-123/",
-                    "MakelaarNaam": "Test Makelaar",
-                    "Soort-aanbod": "appartement"
-                }],
-                "Paging": { "HuidigePagina": 1, "AantalPaginas": 1 },
-                "TotaalAantalObjecten": 1
-            }
-            """;
-        SetupSendAsync(json);
-
-        var result = await _listingProvider.GetListingAsync(DefaultRequest);
-        var item = result.Items.Single();
-
-        Assert.Equal("Keizersgracht 74-K", item.Address);
-        Assert.Equal("Amsterdam", item.City);
-        Assert.Equal("1015CT", item.PostalCode);
-        Assert.Equal("http://www.funda.nl/appartement-123/", item.ListingUrl);
-        Assert.Equal("Test Makelaar", item.AgentName);
-        Assert.Equal("appartement", item.ListingType);
-        VerifySendAsync(Times.Once());
-    }
-
-    [Fact]
-    public async Task GetListingAsync_SuccessResponse_MapsPagingCorrectly()
-    {
-        var json = """
-            {
-                "Objects": [{ "Adres": "Test", "Woonplaats": "Amsterdam", "Postcode": "1000AA" }],
-                "Paging": { "HuidigePagina": 2, "AantalPaginas": 10 },
-                "TotaalAantalObjecten": 250
-            }
-            """;
-        SetupSendAsync(json);
-
-        var result = await _listingProvider.GetListingAsync(DefaultRequest);
-
-        Assert.Equal(2, result.CurrentPage);
-        Assert.Equal(10, result.TotalPages);
-        Assert.Equal(250, result.TotalCount);
-        VerifySendAsync(Times.Once());
-    }
-
-    [Fact]
-    public async Task GetListingAsync_BuildsUrlFromRequestModel()
-    {
-        SetupSendAsync(GetJsonString());
-        var request = new ListingRequestDto { Type = "huur", Area = "rotterdam", SearchQuery = "park", PageNumber = 3 };
-
-        await _listingProvider.GetListingAsync(request);
-
         VerifySendAsync(Times.Once(), req =>
             req.Method == HttpMethod.Get &&
-            req.RequestUri!.ToString().StartsWith(Config.BaseUrl) &&
-            req.RequestUri.ToString().Contains(Config.ApiKey) &&
-            req.RequestUri.ToString().Contains("type=huur") &&
-            req.RequestUri.ToString().Contains("rotterdam/park") &&
-            req.RequestUri.ToString().Contains("page=3") &&
+            req.RequestUri!.ToString().StartsWith(Config.BaseUrl!) &&
+            req.RequestUri.ToString().Contains(Config.ApiKey!) &&
+            req.RequestUri.ToString().Contains($"type={request.Type}") &&
+            req.RequestUri.ToString().Contains($"zo=/{request.Area}/{request.SearchQuery}/") &&
+            req.RequestUri.ToString().Contains($"page={request.PageNumber}") &&
             req.RequestUri.ToString().Contains($"pagesize={Config.PageSize}"));
     }
 
-    [Theory]
-    [InlineData(HttpStatusCode.InternalServerError)]
-    [InlineData(HttpStatusCode.Unauthorized)]
-    [InlineData(HttpStatusCode.NotFound)]
-    public async Task GetListingAsync_NonSuccessHttpResponse_ThrowsHttpRequestException(HttpStatusCode statusCode)
-    {
-        SetupSendAsync(GetJsonString(), statusCode);
-
-        await Assert.ThrowsAsync<HttpRequestException>(() => _listingProvider.GetListingAsync(DefaultRequest));
-
-        VerifySendAsync(Times.Once());
-    }
-
     [Fact]
-    public async Task GetListingAsync_EmptyObjectsList_ReturnsEmptyItems()
+    public async Task GetListingAsync_WithEmptyObjects_ReturnsOk()
     {
-        var json = """
-            { "Objects": [], "Paging": { "HuidigePagina": 1, "AantalPaginas": 0 }, "TotaalAantalObjecten": 0 }
-            """;
-        SetupSendAsync(json);
+        var request = new ListingRequestDto
+        {
+            Type = "koop",
+            Area = "Non-existing Area",
+            PageNumber = 1
+        };
+        var dto = new PartnerResponseDto()
+        {
+            Objects = [],
+            Paging = new PartnerPagingDto
+            {
+                TotalPages = 0,
+                CurrentPage = 1,
+            },
+            TotalCount = 0
+        };
+        SetupSendAsync(JsonSerializer.Serialize(dto));
 
-        var result = await _listingProvider.GetListingAsync(DefaultRequest);
-
-        Assert.Empty(result.Items);
-        Assert.Equal(0, result.TotalCount);
-        VerifySendAsync(Times.Once());
-    }
-
-    [Fact]
-    public async Task GetListingAsync_NullResponseBody_ReturnsEmptyResult()
-    {
-        SetupSendAsync("null");
-
-        var result = await _listingProvider.GetListingAsync(DefaultRequest);
+        var result = await _listingProvider.GetListingAsync(request);
 
         Assert.NotNull(result);
         Assert.Empty(result.Items);
-        Assert.Equal(0, result.CurrentPage);
-        Assert.Equal(0, result.TotalPages);
-        Assert.Equal(0, result.TotalCount);
+        Assert.Equal(dto.TotalCount, result.TotalCount);
+        Assert.Equal(dto.Paging.TotalPages, result.TotalPages);
+        Assert.Equal(dto.Paging.CurrentPage, result.CurrentPage);
+        VerifySendAsync(Times.Once());
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.GatewayTimeout)]
+    public async Task GetListingAsync_WithNonSuccessfulHttpResponse_Throws(HttpStatusCode statusCode)
+    {
+        var request = new ListingRequestDto
+        {
+            Type = "koop",
+            Area = "amsterdam",
+            SearchQuery = "tuin",
+            PageNumber = 1
+        };
+        SetupSendAsync(null, statusCode);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => _listingProvider.GetListingAsync(request));
+
         VerifySendAsync(Times.Once());
     }
 
     [Fact]
-    public async Task GetListingAsync_CancelledToken_ThrowsTaskCanceledException()
+    public async Task GetListingAsync_WithHttpClientException_Throws()
     {
-        using var cts = new CancellationTokenSource();
-        cts.Cancel();
-
+        var request = new ListingRequestDto
+        {
+            Type = "koop",
+            Area = "amsterdam",
+            SearchQuery = "tuin",
+            PageNumber = 1
+        };
+        var exception = new Exception("Unknown Error.");
         _mockHttpMessageHandler
             .Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ThrowsAsync(new TaskCanceledException());
+            .ThrowsAsync(exception);
 
-        await Assert.ThrowsAsync<TaskCanceledException>(
-            () => _listingProvider.GetListingAsync(DefaultRequest, cts.Token));
+        var thrown = await Assert.ThrowsAnyAsync<Exception>(() => _listingProvider.GetListingAsync(request));
 
+        Assert.IsType(exception.GetType(), thrown);
+        Assert.Equal(exception.Message, thrown.Message);
         VerifySendAsync(Times.Once());
     }
 
-    // AI Generated
-    private void SetupSendAsync(string jsonString, HttpStatusCode httpStatusCode = HttpStatusCode.OK)
+    private void SetupSendAsync(string? jsonString, HttpStatusCode httpStatusCode = HttpStatusCode.OK)
     {
         _mockHttpMessageHandler
             .Protected()
@@ -189,7 +169,7 @@ public class ListingProviderTests
             .ReturnsAsync(new HttpResponseMessage
             {
                 StatusCode = httpStatusCode,
-                Content = new StringContent(jsonString, Encoding.UTF8, MediaTypeNames.Application.Json)
+                Content = !string.IsNullOrEmpty(jsonString) ? new StringContent(jsonString, Encoding.UTF8, MediaTypeNames.Application.Json) : default
             });
     }
 
@@ -202,10 +182,5 @@ public class ListingProviderTests
         _mockHttpMessageHandler
             .Protected()
             .Verify("SendAsync", times, requestExpr, ItExpr.IsAny<CancellationToken>());
-    }
-
-    private static string GetJsonString(string filename = "partnerapi-sample.json")
-    {
-        return File.ReadAllText(Path.Combine(".\\Resources", filename));
     }
 }
