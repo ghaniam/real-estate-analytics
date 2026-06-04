@@ -23,6 +23,15 @@ Real Estate Analytics is a .NET 9 console application that queries a real estate
 
 ## Rationale
 
+### Going through 
+- Save response for a search critiera in the cache
+- Introduce API throttling:
+    - Retrying 401 errors with only 5 second window
+    - Increase to 10 seconds
+    - stable in 30 seconds window
+    - if needed will implement an exponential wait
+    - will extend to Too Many Requests
+
 ### Paging
 During testing I observed that the API consistently returns a maximum of 25 objects per response, regardless of the `pagesize` parameter. When `pagesize` exceeds 25, `VolgendeUrl` appears to skip objects, it advances to the next logical page rather than the next physical response, which can result in missing records. Therefore, I set a fixed `pagesize` to 25, as this aligns with the API's actual behaviour, avoids data loss during pagination, and complicated pagination logic.
 
@@ -41,3 +50,6 @@ The test file was AI-assisted, including:
 
 ### `src/RealEstateAnalytics.Console/Program.cs`
 - User-input prompts (field explanations, defaults, examples)
+
+### `src/RealEstateAnalytics.Service/ListingService.cs`
+- Added simple cache implementation - adjusted by Ghani to fit system requirements
