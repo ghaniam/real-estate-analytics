@@ -39,25 +39,25 @@ public class ListingProviderTests
         {
             Type = "koop",
             Area = "amsterdam",
-            Attribute = "tuin",
-            PageNumber = 1
+            Attribute = "tuin"
         };
+        const int pageNumber = 1;
         PartnerResponseDto dto = new()
         {
             Objects =
-        [
-            new PartnerResidentialObjectDto
-            {
-                Id = new Guid("b999a53f-57ea-4e23-98b6-bbb70027251d"),
-                Address = "Keizersgracht 74-K",
-                City = "Amsterdam",
-                PostalCode = "1015CT",
-                ListingUrl = "http://www.funda.nl/appartement-123/",
-                AgentId = 123,
-                AgentName = "Test Makelaar",
-                ListingType = "appartement"
-            }
-        ],
+            [
+                new PartnerResidentialObjectDto
+                {
+                    Id = new Guid("b999a53f-57ea-4e23-98b6-bbb70027251d"),
+                    Address = "Keizersgracht 74-K",
+                    City = "Amsterdam",
+                    PostalCode = "1015CT",
+                    ListingUrl = "http://www.funda.nl/appartement-123/",
+                    AgentId = 123,
+                    AgentName = "Test Makelaar",
+                    ListingType = "appartement"
+                }
+            ],
             Paging = new PartnerPagingDto
             {
                 TotalPages = 39,
@@ -67,7 +67,7 @@ public class ListingProviderTests
         };
         SetupSendAsync(JsonSerializer.Serialize(dto));
 
-        var result = await _listingProvider.GetListingAsync(request);
+        var result = await _listingProvider.GetListingAsync(request, pageNumber);
 
         Assert.NotNull(result);
         Assert.NotEmpty(result.Items);
@@ -77,7 +77,7 @@ public class ListingProviderTests
             req.RequestUri.ToString().Contains(Config.ApiKey!) &&
             req.RequestUri.ToString().Contains($"type={request.Type}") &&
             req.RequestUri.ToString().Contains($"zo=/{request.Area}/{request.Attribute}/") &&
-            req.RequestUri.ToString().Contains($"page={request.PageNumber}") &&
+            req.RequestUri.ToString().Contains($"page={pageNumber}") &&
             req.RequestUri.ToString().Contains($"pagesize={Config.PageSize}"));
     }
 
@@ -87,8 +87,7 @@ public class ListingProviderTests
         var request = new ListingRequestDto
         {
             Type = "koop",
-            Area = "Non-existing Area",
-            PageNumber = 1
+            Area = "Non-existing Area"
         };
         var dto = new PartnerResponseDto()
         {
@@ -102,7 +101,7 @@ public class ListingProviderTests
         };
         SetupSendAsync(JsonSerializer.Serialize(dto));
 
-        var result = await _listingProvider.GetListingAsync(request);
+        var result = await _listingProvider.GetListingAsync(request, pageNumber: 1);
 
         Assert.NotNull(result);
         Assert.Empty(result.Items);
@@ -128,12 +127,11 @@ public class ListingProviderTests
         {
             Type = "koop",
             Area = "amsterdam",
-            Attribute = "tuin",
-            PageNumber = 1
+            Attribute = "tuin"
         };
         SetupSendAsync(null, statusCode);
 
-        await Assert.ThrowsAsync<HttpRequestException>(() => _listingProvider.GetListingAsync(request));
+        await Assert.ThrowsAsync<HttpRequestException>(() => _listingProvider.GetListingAsync(request, pageNumber: 1));
 
         VerifySendAsync(Times.Once());
     }
@@ -145,8 +143,7 @@ public class ListingProviderTests
         {
             Type = "koop",
             Area = "amsterdam",
-            Attribute = "tuin",
-            PageNumber = 1
+            Attribute = "tuin"
         };
         var exception = new Exception("Unknown Error.");
         _mockHttpMessageHandler
@@ -154,7 +151,7 @@ public class ListingProviderTests
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
             .ThrowsAsync(exception);
 
-        var thrown = await Assert.ThrowsAnyAsync<Exception>(() => _listingProvider.GetListingAsync(request));
+        var thrown = await Assert.ThrowsAnyAsync<Exception>(() => _listingProvider.GetListingAsync(request, pageNumber: 1));
 
         Assert.IsType(exception.GetType(), thrown);
         Assert.Equal(exception.Message, thrown.Message);
