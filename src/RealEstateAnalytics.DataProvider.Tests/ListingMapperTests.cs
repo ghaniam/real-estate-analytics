@@ -13,7 +13,7 @@ public class ListingMapperTests
         {
             Type = "koop",
             Area = "amsterdam",
-            SearchQuery = "tuin",
+            Attribute = "tuin",
             PageNumber = 1
         };
         PartnerResponseDto dto = new()

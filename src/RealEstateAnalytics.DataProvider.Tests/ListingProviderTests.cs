@@ -39,7 +39,7 @@ public class ListingProviderTests
         {
             Type = "koop",
             Area = "amsterdam",
-            SearchQuery = "tuin",
+            Attribute = "tuin",
             PageNumber = 1
         };
         PartnerResponseDto dto = new()
@@ -76,7 +76,7 @@ public class ListingProviderTests
             req.RequestUri!.ToString().StartsWith(Config.BaseUrl!) &&
             req.RequestUri.ToString().Contains(Config.ApiKey!) &&
             req.RequestUri.ToString().Contains($"type={request.Type}") &&
-            req.RequestUri.ToString().Contains($"zo=/{request.Area}/{request.SearchQuery}/") &&
+            req.RequestUri.ToString().Contains($"zo=/{request.Area}/{request.Attribute}/") &&
             req.RequestUri.ToString().Contains($"page={request.PageNumber}") &&
             req.RequestUri.ToString().Contains($"pagesize={Config.PageSize}"));
     }
@@ -128,7 +128,7 @@ public class ListingProviderTests
         {
             Type = "koop",
             Area = "amsterdam",
-            SearchQuery = "tuin",
+            Attribute = "tuin",
             PageNumber = 1
         };
         SetupSendAsync(null, statusCode);
@@ -145,7 +145,7 @@ public class ListingProviderTests
         {
             Type = "koop",
             Area = "amsterdam",
-            SearchQuery = "tuin",
+            Attribute = "tuin",
             PageNumber = 1
         };
         var exception = new Exception("Unknown Error.");

@@ -15,7 +15,7 @@ public class ListingService : IListingService
         var requestDto = new ListingRequestDto
         {
             Area = requestModel.Area,
-            SearchQuery = requestModel.SearchQuery,
+            Attribute = requestModel.SearchQuery,
             PageNumber = 1, 
             Type = requestModel.Type
         };
