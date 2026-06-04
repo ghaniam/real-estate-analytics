@@ -9,13 +9,6 @@ public class ListingMapperTests
     [Fact]
     public void MapToModel_ReturnsOk()
     {
-        var request = new ListingRequestDto
-        {
-            Type = "koop",
-            Area = "amsterdam",
-            Attribute = "tuin",
-            PageNumber = 1
-        };
         PartnerResponseDto dto = new()
         {
             Objects =
