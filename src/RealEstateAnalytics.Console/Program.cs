@@ -47,7 +47,7 @@ do
     {
         Type = string.IsNullOrWhiteSpace(type) ? "koop" : type,
         Area = string.IsNullOrWhiteSpace(area) ? null : area,
-        SearchQuery = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery,
+        Attribute = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery,
         Take = take
     };
 
