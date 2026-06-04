@@ -25,6 +25,7 @@ var listingService = scope.ServiceProvider.GetRequiredService<IListingService>()
 Console.WriteLine("=== Real Estate Analytics ===");
 Console.WriteLine();
 
+var shouldContinue = true;
 do
 {
     Console.WriteLine("Listing type (e.g. koop, huur) [default: koop]:");
@@ -45,7 +46,7 @@ do
     ListingRequestModel requestModel = new()
     {
         Type = string.IsNullOrWhiteSpace(type) ? "koop" : type,
-        Area = string.IsNullOrWhiteSpace(area) ? "nederland" : area,
+        Area = string.IsNullOrWhiteSpace(area) ? null : area,
         SearchQuery = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery,
         Take = take
     };
@@ -70,8 +71,10 @@ do
     }
 
     Console.WriteLine();
-    Console.WriteLine("Do you want to continue? (Y/N)");
+    Console.WriteLine("Do you want to continue? (Y/N) (continue by default unless stated otherwise)");
+    var continueInput = Console.ReadLine()?.Trim();
+    shouldContinue = string.IsNullOrEmpty(continueInput) || continueInput.Equals("Y", StringComparison.OrdinalIgnoreCase);
 }
-while (Console.ReadLine()?.Trim().Equals("Y", StringComparison.OrdinalIgnoreCase) == true);
+while (shouldContinue);
 
 Console.WriteLine("Real Estate Analytic has ended.");
