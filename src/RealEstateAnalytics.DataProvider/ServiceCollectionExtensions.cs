@@ -1,5 +1,7 @@
+using System.Threading.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Polly;
 using RealEstateAnalytics.Core.Configuration;
 using RealEstateAnalytics.Core.Interfaces;
 
@@ -16,6 +18,18 @@ public static class ServiceCollectionExtensions
             var baseUrl = configuration[$"{PartnerApiConfiguration.SectionName}:BaseUrl"]
                 ?? throw new InvalidOperationException($"Configuration key '{PartnerApiConfiguration.SectionName}:BaseUrl' is required.");
             client.BaseAddress = new Uri(baseUrl);
+        })
+        .AddResilienceHandler("partner-api", pipeline =>
+        {
+            pipeline.AddRateLimiter(new SlidingWindowRateLimiter(
+                new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit          = 100,
+                    Window               = TimeSpan.FromSeconds(60),
+                    SegmentsPerWindow    = 4,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit           = int.MaxValue
+                }));
         });
 
         return services;

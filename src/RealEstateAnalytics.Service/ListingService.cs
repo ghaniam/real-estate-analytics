@@ -21,30 +21,38 @@ public class ListingService : IListingService
         if (_cache.TryGetValue(cacheKey, out List<ResidentialObjectModel>? cachedObjectModels))
             return MapToAgentListingsModel(cachedObjectModels!, requestModel.Take);
 
-        var pageNumber = 1;
         var requestDto = new ListingRequestDto
         {
             Area = requestModel.Area,
             Attribute = requestModel.Attribute,
             Type = requestModel.Type
         };
-        var objectModels = new List<ResidentialObjectModel>();
-        PagedResultModel<ResidentialObjectModel>? result;
-        do
-        {
-            result = await GetListingAsync(requestDto, pageNumber++, ct);
-            if (result is not null)
-                objectModels.AddRange(result.Items);
-        }
-        while (result is not null && result.CurrentPage < result.TotalPages);
+        var objectModels = await GetListingsFromAllPagesAsync(requestDto, ct);
 
-        if (objectModels.Count != 0)
+        if (objectModels.Any())
             _cache.Set(cacheKey, objectModels, CacheDuration);
 
         return MapToAgentListingsModel(objectModels, requestModel.Take);
     }
 
-    private static IEnumerable<AgentListingsModel> MapToAgentListingsModel(List<ResidentialObjectModel> objectModels, int take)
+    private async Task<IEnumerable<ResidentialObjectModel>> GetListingsFromAllPagesAsync(ListingRequestDto requestDto, CancellationToken ct)
+    {
+        var pageNumber = 1;
+        var objectModels = new List<ResidentialObjectModel>();
+
+        var firstPageResult = await GetListingAsync(requestDto, pageNumber, ct);
+        objectModels.AddRange(firstPageResult.Items);
+
+        var tasks = Enumerable.Range(pageNumber++, firstPageResult.TotalPages - 1)
+            .Select(i => GetListingAsync(requestDto, i, ct));
+        var pageResults = await Task.WhenAll(tasks);
+        foreach (var pageResult in pageResults)
+            objectModels.AddRange(pageResult.Items);
+
+        return objectModels.Distinct();
+    }
+
+    private static IEnumerable<AgentListingsModel> MapToAgentListingsModel(IEnumerable<ResidentialObjectModel> objectModels, int take)
     {
         return objectModels
             .Where(x => x.AgentId.HasValue)
@@ -58,29 +66,26 @@ public class ListingService : IListingService
             .Take(take);
     }
 
-    private async Task<PagedResultModel<ResidentialObjectModel>?> GetListingAsync(ListingRequestDto requestDto, int pageNumber, CancellationToken ct)
+    private async Task<PagedResultModel<ResidentialObjectModel>> GetListingAsync(ListingRequestDto requestDto, int pageNumber, CancellationToken ct)
     {
-        PagedResultModel<ResidentialObjectModel>? result = null;
         const int maxRetries = 3;
         const int retryDelayMs = 30000;
         for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
             try
             {
-                result = await _listingProvider.GetListingAsync(requestDto, pageNumber, ct);
-                break;
+                return await _listingProvider.GetListingAsync(requestDto, pageNumber, ct);
             }
             catch (HttpRequestException ex)
                 when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
                         ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
             {
-                if (attempt == maxRetries) throw;
-                Console.WriteLine($"Wait for {retryDelayMs} ms for {attempt} times.");
+                if (attempt == maxRetries) throw;  
+                Console.WriteLine($"Wait for {retryDelayMs} ms for {attempt} times.");              
                 await Task.Delay(retryDelayMs, ct);
             }
         }
-
-        return result;
+        throw new InvalidOperationException("Retry loop exited without returning or throwing.");
     }
 
 // The rate limiter adds value when:
