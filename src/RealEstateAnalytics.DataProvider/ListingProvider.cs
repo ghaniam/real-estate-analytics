@@ -24,7 +24,6 @@ public class ListingProvider : IListingProvider
         var url = $"{_options.BaseUrl}/{_options.ApiKey}/?{BuildQueryParams(listingRequestModel, pageNumber)}";
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.TryAddWithoutValidation("Accept", "*/*");
-        Console.WriteLine($"Requesting URL: {url}");
         using var response = await _httpClient.SendAsync(request, ct);
         var responseBody = await response.Content.ReadAsStringAsync(ct);
         response.EnsureSuccessStatusCode();

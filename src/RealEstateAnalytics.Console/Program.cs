@@ -53,6 +53,7 @@ do
 
     try
     {
+        // (Optional) TO-DO: show a loading or wating animation
         var results = await listingService.GetAgentListingsOrderedByCountAsync(requestModel);
         var resultList = results.ToList();
         if (resultList.Count > 0)
@@ -68,6 +69,7 @@ do
     catch (Exception ex)
     {
         Console.WriteLine($"Something went wrong: {ex.Message}");
+        Console.WriteLine("Exception: {0}", ex);
     }
 
     Console.WriteLine();

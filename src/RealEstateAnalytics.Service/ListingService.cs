@@ -15,6 +15,8 @@ public class ListingService : IListingService
         _listingProvider = listingProvider;
         _cache = cache;
     }
+
+    // TO-DO: Implement unit tests
     public async Task<IEnumerable<AgentListingsModel>> GetAgentListingsOrderedByCountAsync(ListingRequestModel requestModel, CancellationToken ct = default)
     {
         var cacheKey = $"listing:{requestModel.Type}:{requestModel.Area}:{requestModel.Attribute}";
@@ -42,12 +44,17 @@ public class ListingService : IListingService
 
         var firstPageResult = await GetListingAsync(requestDto, pageNumber, ct);
         objectModels.AddRange(firstPageResult.Items);
-
-        var tasks = Enumerable.Range(pageNumber++, firstPageResult.TotalPages - 1)
-            .Select(i => GetListingAsync(requestDto, i, ct));
-        var pageResults = await Task.WhenAll(tasks);
-        foreach (var pageResult in pageResults)
-            objectModels.AddRange(pageResult.Items);
+        if(firstPageResult.TotalPages <= pageNumber) return objectModels;
+        
+        var pageResults = new List<ResidentialObjectModel>();
+        await Parallel.ForEachAsync(
+            Enumerable.Range(2, firstPageResult.TotalPages - 1),
+            new ParallelOptions { MaxDegreeOfParallelism = 10, CancellationToken = ct },
+            async (page, token) =>
+            {
+                var result = await GetListingAsync(requestDto, pageNumber, ct);
+                lock (pageResults) objectModels.AddRange(result.Items);
+            });
 
         return objectModels.Distinct();
     }
@@ -55,7 +62,7 @@ public class ListingService : IListingService
     private static IEnumerable<AgentListingsModel> MapToAgentListingsModel(IEnumerable<ResidentialObjectModel> objectModels, int take)
     {
         return objectModels
-            .Where(x => x.AgentId.HasValue)
+            .Where(o => o.AgentId.HasValue)
             .GroupBy(o => o.AgentId!)
             .Select(g => new AgentListingsModel
             {
@@ -68,28 +75,6 @@ public class ListingService : IListingService
 
     private async Task<PagedResultModel<ResidentialObjectModel>> GetListingAsync(ListingRequestDto requestDto, int pageNumber, CancellationToken ct)
     {
-        const int maxRetries = 3;
-        const int retryDelayMs = 30000;
-        for (int attempt = 1; attempt <= maxRetries; attempt++)
-        {
-            try
-            {
-                return await _listingProvider.GetListingAsync(requestDto, pageNumber, ct);
-            }
-            catch (HttpRequestException ex)
-                when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
-                        ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-            {
-                if (attempt == maxRetries) throw;  
-                Console.WriteLine($"Wait for {retryDelayMs} ms for {attempt} times.");              
-                await Task.Delay(retryDelayMs, ct);
-            }
-        }
-        throw new InvalidOperationException("Retry loop exited without returning or throwing.");
+        return await _listingProvider.GetListingAsync(requestDto, pageNumber, ct);
     }
-
-// The rate limiter adds value when:
-// Requests are fired concurrently (e.g. parallel paging, multiple users hitting an API)
-// You want to prevent the 429 rather than recover from it
-// The API has strict quotas where hitting the limit has consequences beyond a single rejected request (e.g. temporary bans)
 }

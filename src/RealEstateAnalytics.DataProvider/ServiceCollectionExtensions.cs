@@ -1,6 +1,8 @@
+using System.Net;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
 using Polly;
 using RealEstateAnalytics.Core.Configuration;
 using RealEstateAnalytics.Core.Interfaces;
@@ -21,6 +23,22 @@ public static class ServiceCollectionExtensions
         })
         .AddResilienceHandler("partner-api", pipeline =>
         {
+            pipeline.AddRetry(new HttpRetryStrategyOptions
+            {
+                MaxRetryAttempts = 3,
+                Delay = TimeSpan.FromSeconds(30),
+                ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+                    .HandleResult(r =>
+                        r.StatusCode == HttpStatusCode.TooManyRequests ||
+                        r.StatusCode == HttpStatusCode.Unauthorized)
+                    .Handle<TaskCanceledException>(),
+                OnRetry = args =>
+                {
+                    Console.WriteLine($"[Retry] Attempt {args.AttemptNumber + 1}, delay {args.RetryDelay.TotalSeconds}s, reason: {args.Outcome.Exception?.Message ?? args.Outcome.Result?.StatusCode.ToString()}");
+                    return ValueTask.CompletedTask;
+                }
+            });
+
             pipeline.AddRateLimiter(new SlidingWindowRateLimiter(
                 new SlidingWindowRateLimiterOptions
                 {
