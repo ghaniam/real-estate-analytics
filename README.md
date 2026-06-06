@@ -24,35 +24,64 @@ Real Estate Analytics is a .NET 9 console application that queries a real estate
 ## Rationale
 
 ### Paging
-During testing I observed that the API consistently returns a maximum of 25 objects per response, regardless of the `pagesize` parameter. When `pagesize` exceeds 25, `VolgendeUrl` appears to skip objects, it advances to the next logical page rather than the next physical response, which can result in missing records. Therefore, I set a fixed `pagesize` to 25, as this aligns with the API's actual behaviour, avoids data loss during pagination, and complicated pagination logic.
+During testing I observed that the API consistently returns a maximum of 25 objects per response, regardless of the `pagesize` parameter. When `pagesize` exceeds 25, `VolgendeUrl` appears to skip objects, it advances to the next logical page rather than the next physical response, which can result in missing records. Therefore, I set a fixed `pagesize` to 25, as this aligns with the API's actual behaviour, avoids data loss during pagination, and complicates pagination logic.
 
 ### API call efficiency
-To avoid the API from rejecting the request as well as to achieve the best performance, a number of apporaches are taken:
-- I started with sending the API requests in a sequential order, but this is not the best performance as it goes one by one. If the query targets large amount of returned data this is not the best approach. This apporach is not taken.
-- Tackling the API request limit (100 requests/minute), a reactive retrial mechanism is implemented to handle error that resulted in calling more than 100 requests per minute. This apporach is maintained for now at 30 seconds after trying 5/10/60 seconds.
-- Sending API requests in parallel. This performs faster, but also faster to reach the API limit so it is efficient but introduce a new issue.
-- Throttling API calls per 100 requests. Once 100 requests are sent, the next requests are delayed so the Partner API can have a breathing room
+The partner API enforces a limit of 100 requests per minute. To stay within that limit while fetching all pages as fast as possible, a few approaches were explored:
+
+**Sequential requests** were the starting point. Simple but slow, one page at a time means large result sets take a long time. Not taken forward.
+
+**Retry on Too Many Request or "Unauthozied"** acts as a reactive safety net for when the API rejects a request despite the rate limiter. It waits 30 seconds before retrying.
+
+**A sliding window rate limiter** sits on top to proactively stay under the 100/minute API limit. It tracks requests across 4 segments of 15 seconds each, releasing queued requests gradually as old segments expire rather than waiting for a full 60-second reset. This is the approach taken.
+
+**Parallel requests with `Task.WhenAll`** fired all page requests at once. Fast, but caused timeout issues. All requests entered the rate limiter queue simultaneously, and `HttpClient.Timeout` starts counting from when a request is created, not when it is sent. Requests sitting in the queue expired before being dispatched. Not taken forward.
+
+**Parallel requests with `Parallel.ForEachAsync`** and a bounded `MaxDegreeOfParallelism` keeps at most N requests in flight at a time. As one finishes, the next starts. This keeps the queue shallow enough that `HttpClient.Timeout` is never an issue. This is the approach taken.
+
+### Caching
+I implemented caching mechanism to avoid hammering the partner api further everytime the console application tries to retrieve data. Since for now, there are no concern with having live data all the time, this is the approach that I taken.
 
 ## Use of AI
 
-I used Claude Code (Anthropic) as a coding assistant during this exercise. Here is an honest breakdown of where I leaned on it, what it helped with, and where I took over.
+I used Claude Code (Anthropic) as a thinking partner and coding assistant throughout this exercise. I leaned on AI for mechanical or repetitive work so I could spend my time on the 
+decisions that actually matter. Below are the honest account of where AI was involved
 
-### `src/RealEstateAnalytics.DataProvider.Tests/ListingProviderTests.cs`
-**How:** AI took care of the test setup and the two helper methods.
-**Why:** Getting `HttpMessageHandler` mocking to work with Moq Protected is the kind of setup that takes time to get right the first time. I had AI handle that part (both helpers are marked `// AI Generated` in source) so I could focus on writing the actual test cases and deciding what to assert.
+### Test Setup and Boilerplate
+Getting `HttpMessageHandler` mocking to work correctly with Moq Protected is tedious to set up from scratch. I had AI handle that scaffolding so I could focus on how to setup/arrange the tests and its verification. Every test case, every assertion, and every decision about what to cover was mine.
+Implementation: `src/RealEstateAnalytics.DataProvider.Tests/ListingProviderTests.cs`
 
-### `src/RealEstateAnalytics.DataProvider.Tests/ListingMappingTests.cs`
-**How:** AI suggested which properties to assert in `MapToModel_ReturnsOk`.
-**Why:** I wanted a second pair of eyes to make sure I had not missed any mapped fields. I went through each one myself and confirmed it matched what the mapper actually does.
+### Mapping Assertions 
+Asserting every mapped field one by one is mechanical work. I used AI to generate those assertions faster and then went through each one against the actual mapper to confirm they were correct. AI wrote it, I reviewed and approved it.
+Implementation: `src/RealEstateAnalytics.DataProvider.Tests/ListingMappingTests.cs`
 
-### `src/RealEstateAnalytics.Console/Program.cs`
-**How:** AI wrote the first draft of the user-facing prompts - the labels, defaults, and examples.
-**Why:** Mostly to move faster on the less interesting parts. I tweaked the wording and reworked the loop logic to behave the way I wanted.
+### Console Prompts
+I used AI to write the first draft of the user facing prompts to move faster on the less interesting parts. The wording were reworked by me to behave the way I intended.
+Implementation: `src/RealEstateAnalytics.Console/Program.cs`
 
-### `src/RealEstateAnalytics.Service/ListingService.cs`
-**How:** AI gave me a starting point for caching with `IMemoryCache`.
-**Why:** I knew I wanted caching but was not sure where to draw the line. After seeing what AI came up with (caching per page), I realised it made more sense to cache the full result at the query level - so I reworked it to do that instead.
+### Cache
+I knew what I wanted to implement is a simple caching mechanism, so I used AI to generate the initial caching code with IMemoryCache and tweaked it to fit my needs.
+Implementation:
+- `src/RealEstateAnalytics.Service/ListingService.cs`
+- `src/RealEstateAnalytics.Service/ServiceCollectionExtensions.cs`
 
-### `src/RealEstateAnalytics.DataProvider/ServiceCollectionExtensions.cs`
-**How:** AI walked me through the Polly rate limiter options and put together an initial setup.
-**Why:** I had not used the newer `Microsoft.Extensions.Http.Resilience` API before, so I used AI to get up to speed on what each option does. The actual decisions - using a sliding window, setting `QueueLimit = int.MaxValue` to delay rather than reject, and settling on a 1 minute window - were mine after understanding the trade-offs.
+### Rate Limiter Configuration
+AI walked me through the available options in Microsoft.Extensions.Http.Resilience so I could understand what each setting does. Once I understood the trade offs I decide to use a sliding window, setting QueueLimit to delay rather than reject requests, and settling on a one minute window.
+- `src/RealEstateAnalytics.DataProvider/ServiceCollectionExtensions.cs`
+
+**Example**
+Manual:         |──40s requests──|──60s delay──|  next batch
+Rate limiter:   |──40s requests──|──20s  wait──|  next batch
+
+### Parallel Request Outbound
+This is where AI was most useful as a thinking partner rather than a code writer. 
+Despite using rate limiter when sending concurrent requests, I still experience timeout issues. I worked through the problem with AI and we identified that HttpClient.Timeout starts counting when a request is created, not when it is sent. This meant requests sitting in the queue were expiring before they were ever dispatched.
+AI suggested me to increase the `HttpClient.Timeout`, but that will not solve the problem as it will also impact actual requests that were sent and having actual timeouts. The right fix is not to rely on rate limiter to send requests in batches because rate limiter purpose is to limit the request, but to introduce a mechanism that can send the request in batches. AI suggested to use `Parallel.ForEachAsync` with a bounded concurrency limit keeps the queue shallow enough.
+Implementation: 
+- `src/RealEstateAnalytics.Service/ListingService.cs`
+
+## How to run it
+TO-DO
+
+## Results
+TO-DO
