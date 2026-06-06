@@ -45,18 +45,18 @@ public class ListingService : IListingService
         var firstPageResult = await GetListingAsync(requestDto, pageNumber, ct);
         objectModels.AddRange(firstPageResult.Items);
         if(firstPageResult.TotalPages <= pageNumber) return objectModels;
-        
+
         var pageResults = new List<ResidentialObjectModel>();
         await Parallel.ForEachAsync(
             Enumerable.Range(2, firstPageResult.TotalPages - 1),
             new ParallelOptions { MaxDegreeOfParallelism = 10, CancellationToken = ct },
             async (page, token) =>
             {
-                var result = await GetListingAsync(requestDto, pageNumber, ct);
+                var result = await GetListingAsync(requestDto, page, ct);
                 lock (pageResults) objectModels.AddRange(result.Items);
             });
 
-        return objectModels.Distinct();
+        return objectModels.DistinctBy(o => o.Id);
     }
 
     private static IEnumerable<AgentListingsModel> MapToAgentListingsModel(IEnumerable<ResidentialObjectModel> objectModels, int take)
@@ -73,8 +73,6 @@ public class ListingService : IListingService
             .Take(take);
     }
 
-    private async Task<PagedResultModel<ResidentialObjectModel>> GetListingAsync(ListingRequestDto requestDto, int pageNumber, CancellationToken ct)
-    {
-        return await _listingProvider.GetListingAsync(requestDto, pageNumber, ct);
-    }
+    private async Task<PagedResultModel<ResidentialObjectModel>> GetListingAsync(ListingRequestDto requestDto, int pageNumber, CancellationToken ct) 
+        => await _listingProvider.GetListingAsync(requestDto, pageNumber, ct);
 }
