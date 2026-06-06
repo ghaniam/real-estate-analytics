@@ -1,4 +1,3 @@
-using RealEstateAnalytics.Core.Models;
 using RealEstateAnalytics.DataProvider.Mappings;
 using RealEstateAnalytics.DataProvider.Models;
 
@@ -41,14 +40,14 @@ public class ListingMapperTests
 
         Assert.Equal(dto.Objects.Count, result.Items.Count());
         var expectedItem = dto.Objects.Single();
-        var item = result.Items.Single();
-        Assert.Equal(expectedItem.Id, item.Id);
-        Assert.Equal(expectedItem.Address, item.Address);
-        Assert.Equal(expectedItem.City, item.City);
-        Assert.Equal(expectedItem.PostalCode, item.PostalCode);
-        Assert.Equal(expectedItem.ListingUrl, item.ListingUrl);
-        Assert.Equal(expectedItem.AgentId, item.AgentId);
-        Assert.Equal(expectedItem.AgentName, item.AgentName);
-        Assert.Equal(expectedItem.ListingType, item.ListingType);
+        var actualItem = result.Items.Single();
+        Assert.Equal(expectedItem.Id, actualItem.Id);
+        Assert.Equal(expectedItem.Address, actualItem.Address);
+        Assert.Equal(expectedItem.City, actualItem.City);
+        Assert.Equal(expectedItem.PostalCode, actualItem.PostalCode);
+        Assert.Equal(expectedItem.ListingUrl, actualItem.ListingUrl);
+        Assert.Equal(expectedItem.AgentId, actualItem.AgentId);
+        Assert.Equal(expectedItem.AgentName, actualItem.AgentName);
+        Assert.Equal(expectedItem.ListingType, actualItem.ListingType);
     }
 }

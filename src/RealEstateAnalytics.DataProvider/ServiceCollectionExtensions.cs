@@ -30,7 +30,7 @@ public static class ServiceCollectionExtensions
                 ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
                     .HandleResult(r =>
                         r.StatusCode == HttpStatusCode.TooManyRequests ||
-                        r.StatusCode == HttpStatusCode.Unauthorized)
+                        r.StatusCode == HttpStatusCode.Unauthorized) // This seems to be the error it returned when there's too many requests
                     .Handle<TaskCanceledException>(),
                 OnRetry = args =>
                 {
