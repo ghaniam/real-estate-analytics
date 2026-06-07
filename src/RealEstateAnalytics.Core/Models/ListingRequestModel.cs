@@ -9,5 +9,5 @@ public class ListingRequestModel
     // For example, if there are 100 agents, but the user only wants to see the top 10, 
     // then Take will be 10. 
     // If Take is 0 or negative, it will return all agents.
-    public int Take { get; set; }
+    public int Take { get; set; } = 10;
 }

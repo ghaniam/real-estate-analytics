@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using RealEstateAnalytics.Core.Interfaces;
 using RealEstateAnalytics.Core.Models;
 using RealEstateAnalytics.DataProvider;
@@ -21,6 +22,7 @@ var host = Host.CreateDefaultBuilder(args)
 
 using var scope = host.Services.CreateScope();
 var listingService = scope.ServiceProvider.GetRequiredService<IListingService>();
+var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("RealEstateAnalytics.Console");
 
 Console.WriteLine("=== Real Estate Analytics ===");
 Console.WriteLine();
@@ -37,30 +39,29 @@ do
     Console.WriteLine("Search query / features (e.g. tuin, garage, balkon) [leave blank for none]:");
     var searchQuery = Console.ReadLine();
 
-    Console.WriteLine("How many top agents to show (Must be number. For example: 10):");
-    var takeInput = Console.ReadLine();
-    var take = int.TryParse(takeInput, out var parsed) ? parsed : 10;
-
     Console.WriteLine();
 
     ListingRequestModel requestModel = new()
     {
         Type = string.IsNullOrWhiteSpace(type) ? "koop" : type,
         Area = string.IsNullOrWhiteSpace(area) ? null : area,
-        Attribute = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery,
-        Take = take
+        Attribute = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery
     };
 
     try
     {
         // (Optional) TO-DO: show a loading or wating animation
-        var results = await listingService.GetAgentListingsOrderedByCountAsync(requestModel);
-        var resultList = results.ToList();
-        if (resultList.Count > 0)
+        Console.WriteLine("Processing your request, please wait...");
+        var responseModels = await listingService.GetAgentListingsOrderedByCountAsync(requestModel);
+        if (responseModels.Any())
         {
-            foreach (var agent in resultList)
-                Console.WriteLine($"Rank {resultList.IndexOf(agent) + 1}: Agent: {agent.AgentName}, Listings Count: {agent.ListingsCount}");
-        }
+            Console.WriteLine($"Results fetched on {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            // Display results in a table format via AI 
+            Console.WriteLine($"{"Rank",-6} {"Agent",-40} {"Listings",8}");
+            Console.WriteLine(new string('-', 56));
+
+            foreach (var agent in responseModels)
+                Console.WriteLine($"{agent.Ranking,-6} {agent.AgentName,-40} {agent.ListingsCount,8}");}
         else
         {
             Console.WriteLine("No results found for this query.");
@@ -68,14 +69,14 @@ do
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Something went wrong: {ex.Message}");
-        Console.WriteLine("Exception: {0}", ex);
+        logger.LogError(ex, "Something went wrong while processing the request.");
     }
 
     Console.WriteLine();
     Console.WriteLine("Do you want to continue? (Y/N) (continue by default unless stated otherwise)");
     var continueInput = Console.ReadLine()?.Trim();
     shouldContinue = string.IsNullOrEmpty(continueInput) || continueInput.Equals("Y", StringComparison.OrdinalIgnoreCase);
+    Console.WriteLine();
 }
 while (shouldContinue);
 
