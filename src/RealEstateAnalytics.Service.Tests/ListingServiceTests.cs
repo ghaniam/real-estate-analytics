@@ -16,72 +16,58 @@ public class ListingServiceTests
         _mockListingProvider = new Mock<IListingProvider>();
         _mockMemoryCache = new Mock<IMemoryCache>();
         _listingService = new ListingService(_mockListingProvider.Object, _mockMemoryCache.Object);
+
+        var mockCacheEntry = new Mock<ICacheEntry>();
+        mockCacheEntry.SetupGet(e => e.ExpirationTokens).Returns([]);
+        mockCacheEntry.SetupGet(e => e.PostEvictionCallbacks).Returns([]);
+        mockCacheEntry.SetupProperty(e => e.Value);
+        mockCacheEntry.SetupProperty(e => e.AbsoluteExpiration);
+        mockCacheEntry.SetupProperty(e => e.AbsoluteExpirationRelativeToNow);
+        mockCacheEntry.SetupProperty(e => e.SlidingExpiration);
+        _mockMemoryCache
+            .Setup(m => m.CreateEntry(It.IsAny<object>()))
+            .Returns(mockCacheEntry.Object);
     }
 
     [Fact]
     public async Task GetAgentListingsOrderedByCountAsync_WithOrderedRanks_ReturnsOk()
     {
         var requestModel = new ListingRequestModel { Area = "amsterdam", Attribute = "tuin", Type = "koop", Take = 10 };
-
-        var objectsAgentX = Enumerable.Range(0, 25).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = 1, AgentName = "Agent X" }).ToList();
-        var objectsAgentY = Enumerable.Range(0, 15).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = 2, AgentName = "Agent Y" }).ToList();
-        var objectsAgentZ = Enumerable.Range(0, 10).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = 3, AgentName = "Agent Z" }).ToList();
-        var page2Items = objectsAgentY.Concat(objectsAgentZ).ToList();
+        var objectsAgentAId = 1;
+        var objectsAgentBId = 2;
+        var objectsAgentCId = 3;
+        var objectsAgentDId = 4;
+        var objectsAgentA = Enumerable.Range(0, 25).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentAId, AgentName = "Agent A" }).ToList();
+        var objectsAgentB = Enumerable.Range(0, 15).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentBId, AgentName = "Agent B" }).ToList();
+        var objectsAgentC = Enumerable.Range(0, 5).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentCId, AgentName = "Agent C" }).ToList();
+        var objectsAgentD = Enumerable.Range(0, 5).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentDId, AgentName = "Agent D" }).ToList();
+        var page2Items = objectsAgentB.Concat(objectsAgentC).Concat(objectsAgentD).ToList();
 
         _mockListingProvider
             .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(p => p == 1), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PagedResultModel<ResidentialObjectModel> { Items = objectsAgentX, TotalPages = 2, CurrentPage = 1, TotalCount = 50 });
+            .ReturnsAsync(new PagedResultModel<ResidentialObjectModel> { Items = objectsAgentA, TotalPages = 2, CurrentPage = 1, TotalCount = objectsAgentA.Count });
         _mockListingProvider
             .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(p => p == 2), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PagedResultModel<ResidentialObjectModel> { Items = page2Items, TotalPages = 2, CurrentPage = 2, TotalCount = 50 });
+            .ReturnsAsync(new PagedResultModel<ResidentialObjectModel> { Items = page2Items, TotalPages = 2, CurrentPage = 2, TotalCount = page2Items.Count });
 
-        SetupCacheMiss();
-        SetupCacheSet();
-
-        var responseModels = (await _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None)).ToList();
-
-        Assert.Equal(3, responseModels.Count);
-        Assert.Equal("Agent X", responseModels[0].AgentName);
-        Assert.Equal(25, responseModels[0].ListingsCount);
-        Assert.Equal("Agent Y", responseModels[1].AgentName);
-        Assert.Equal(15, responseModels[1].ListingsCount);
-        Assert.Equal("Agent Z", responseModels[2].AgentName);
-        Assert.Equal(10, responseModels[2].ListingsCount);
-        
-        _mockListingProvider.Verify(p => p.GetListingsPageAsync(
-            It.Is<ListingsRequestDto>(r => r.Area == requestModel.Area && r.Attribute == requestModel.Attribute && r.Type == requestModel.Type),
-            It.IsAny<int>(),
-            It.Is<CancellationToken>(ct => ct == CancellationToken.None)), Times.Exactly(2));
-        _mockMemoryCache.Verify(m => m.CreateEntry(It.IsAny<object>()), Times.Once);
-    }
-
-    // GetAgentListingsOrderedByCountAsync_WithEqualRanks_ReturnsOk
-    [Fact]
-    public async Task GetAgentListingsOrderedByCountAsync_WithEqualRanks_ReturnsOk()
-    {
-        var requestModel = new ListingRequestModel { Area = "amsterdam", Attribute = "tuin", Type = "koop", Take = 10 };
-
-        var objectsAgentX = Enumerable.Range(0, 10).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = 1, AgentName = "Agent X" }).ToList();
-        var objectsAgentY = Enumerable.Range(0, 10).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = 2, AgentName = "Agent Y" }).ToList();
-        var pageItems = objectsAgentX.Concat(objectsAgentY).ToList();
-
-        _mockListingProvider
-            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(p => p == 1), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PagedResultModel<ResidentialObjectModel> { Items = pageItems, TotalPages = 1, CurrentPage = 1, TotalCount = 50 });
-
-        SetupCacheMiss();
-        SetupCacheSet();
+        SetupCacheRetrieval();
 
         var responseModels = (await _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None)).ToList();
 
-        Assert.Equal(3, responseModels.Count);
-        Assert.Equal("Agent X", responseModels[0].AgentName);
-        Assert.Equal(25, responseModels[0].ListingsCount);
-        Assert.Equal("Agent Y", responseModels[1].AgentName);
-        Assert.Equal(15, responseModels[1].ListingsCount);
-        Assert.Equal("Agent Z", responseModels[2].AgentName);
-        Assert.Equal(10, responseModels[2].ListingsCount);
-        
+        Assert.Equal(4, responseModels.Count);
+        Assert.Equal("Agent A", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentAId)?.AgentName);
+        Assert.Equal(25, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentAId)?.ListingsCount);
+        Assert.Equal(1, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentAId)?.Ranking);
+        Assert.Equal("Agent B", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentBId)?.AgentName);
+        Assert.Equal(15, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentBId)?.ListingsCount);
+        Assert.Equal(2, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentBId)?.Ranking);
+        Assert.Equal("Agent C", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentCId)?.AgentName);
+        Assert.Equal(5, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentCId)?.ListingsCount);
+        Assert.Equal(3, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentCId)?.Ranking);
+        Assert.Equal("Agent D", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentDId)?.AgentName);
+        Assert.Equal(5, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentDId)?.ListingsCount);
+        Assert.Equal(3, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentDId)?.Ranking);
+
         _mockListingProvider.Verify(p => p.GetListingsPageAsync(
             It.Is<ListingsRequestDto>(r => r.Area == requestModel.Area && r.Attribute == requestModel.Attribute && r.Type == requestModel.Type),
             It.IsAny<int>(),
@@ -97,7 +83,7 @@ public class ListingServiceTests
         {
             new() { Id = Guid.NewGuid(), AgentId = 1, AgentName = "Cached Agent" },
         };
-        SetupCacheHit(cachedItems);
+        SetupCacheRetrieval(cachedItems);
 
         var result = await _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None);
 
@@ -105,19 +91,23 @@ public class ListingServiceTests
         Assert.Single(resultList);
         Assert.Equal("Cached Agent", resultList[0].AgentName);
         _mockListingProvider.Verify(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockMemoryCache.Verify(m => m.CreateEntry(It.IsAny<object>()), Times.Never);
     }
 
     [Fact]
     public async Task GetAgentListingsOrderedByCountAsync_WithNoObjectsFromFirstPage_ReturnsOk()
     {
         var requestModel = new ListingRequestModel { Type = "koop", Area = "nowhere", Take = 10 };
-        SetupCacheMiss();
-        SetupListingProvider(new PagedResultModel<ResidentialObjectModel> { Items = [], TotalPages = 0, CurrentPage = 1, TotalCount = 0 });
+        SetupCacheRetrieval();
+        _mockListingProvider
+            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(page => page == 1), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResultModel<ResidentialObjectModel> { Items = [], TotalPages = 0, CurrentPage = 1, TotalCount = 0 });
 
         var result = await _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None);
 
         Assert.Empty(result);
-        _mockListingProvider.Verify(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockListingProvider.Verify(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(page => page == 1), It.IsAny<CancellationToken>()), Times.Once);
+        _mockListingProvider.Verify(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(page => page != 1), It.IsAny<CancellationToken>()), Times.Never);
         _mockMemoryCache.Verify(m => m.CreateEntry(It.IsAny<object>()), Times.Never);
     }
 
@@ -130,9 +120,10 @@ public class ListingServiceTests
             new() { Id = Guid.NewGuid(), AgentId = null, AgentName = "No ID Agent" },
             new() { Id = Guid.NewGuid(), AgentId = 1, AgentName = "Valid Agent" },
         };
-        SetupCacheMiss();
-        SetupCacheSet();
-        SetupListingProvider(new PagedResultModel<ResidentialObjectModel> { Items = items, TotalPages = 1, CurrentPage = 1, TotalCount = items.Count });
+        SetupCacheRetrieval();
+        _mockListingProvider
+            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(page => page == 1), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResultModel<ResidentialObjectModel> { Items = items, TotalPages = 1, CurrentPage = 1, TotalCount = items.Count });
 
         var result = await _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None);
 
@@ -149,9 +140,10 @@ public class ListingServiceTests
         {
             new() { Id = Guid.NewGuid(), AgentId = 1, AgentName = null },
         };
-        SetupCacheMiss();
-        SetupCacheSet();
-        SetupListingProvider(new PagedResultModel<ResidentialObjectModel> { Items = items, TotalPages = 1, CurrentPage = 1, TotalCount = items.Count });
+        SetupCacheRetrieval();
+        _mockListingProvider
+            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(page => page == 1), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResultModel<ResidentialObjectModel> { Items = items, TotalPages = 1, CurrentPage = 1, TotalCount = items.Count });
 
         var result = await _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None);
 
@@ -161,73 +153,88 @@ public class ListingServiceTests
         Assert.Equal(1, resultList[0].ListingsCount);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GetAgentListingsOrderedByCountAsync_WithDuplicateListing_ReturnsOk(bool hasMoreThanOnePage)
+    {
+        var requestModel = new ListingRequestModel { Type = "koop", Area = "amsterdam", Take = 10 };
+        var residentialObjectModel = new ResidentialObjectModel 
+        {
+             Id = Guid.NewGuid(), 
+             AgentId = 1, 
+             AgentName = "Agent A",
+             Address = "Some Address",
+             PostalCode = "1234 AB",
+             City = "Amsterdam",
+                
+        };
+        var items = new List<ResidentialObjectModel>
+        {
+            residentialObjectModel,
+            residentialObjectModel
+        };
+        SetupCacheRetrieval();
+        _mockListingProvider
+            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(p => p == 1), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResultModel<ResidentialObjectModel> { Items = items, TotalPages = hasMoreThanOnePage ? 2 : 1, CurrentPage = 1, TotalCount = items.Count });
+        if (hasMoreThanOnePage){
+
+        _mockListingProvider
+            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(p => p != 1), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResultModel<ResidentialObjectModel> { Items = items, TotalPages = hasMoreThanOnePage ? 2 : 1, CurrentPage = 2, TotalCount = items.Count });
+        }
+        var responseModels = await _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None);
+
+        Assert.Single(responseModels);
+        var responseModel = responseModels.Single();
+        Assert.Equal(1, responseModel.ListingsCount);
+    }
+
     [Fact]
     public async Task GetAgentListingsOrderedByCountAsync_WithListingProviderError_ForFirstPageRetrieval_Throws()
     {
         var requestModel = new ListingRequestModel { Type = "koop", Area = "amsterdam", Take = 10 };
-        SetupCacheMiss();
+        SetupCacheRetrieval();
         _mockListingProvider
-            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new HttpRequestException("Service unavailable."));
+            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(page => page == 1), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("Unknown error."));
 
-        await Assert.ThrowsAsync<HttpRequestException>(() =>
+        var exception = await Assert.ThrowsAsync<Exception>(() =>
             _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None));
+        Assert.Equal("Unknown error.", exception.Message);
+        _mockListingProvider.Verify(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(page => page != 1), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task GetAgentListingsOrderedByCountAsync_WithListingProviderError_ForNextPagesRetrieval_Throws()
     {
         var requestModel = new ListingRequestModel { Type = "koop", Area = "amsterdam", Take = 10 };
-        SetupCacheMiss();
+        SetupCacheRetrieval();
         _mockListingProvider
-            .SetupSequence(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(page => page == 1), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResultModel<ResidentialObjectModel>
             {
                 Items = [new() { Id = Guid.NewGuid(), AgentId = 1, AgentName = "Agent A" }],
                 TotalPages = 2,
                 CurrentPage = 1,
                 TotalCount = 2
-            })
-            .ThrowsAsync(new HttpRequestException("Service unavailable on page 2."));
-
-        await Assert.ThrowsAnyAsync<Exception>(() =>
-            _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None));
-    }
-
-    private void SetupCacheMiss()
-    {
-        object? cacheValue = null;
-        _mockMemoryCache
-            .Setup(m => m.TryGetValue(It.IsAny<object>(), out cacheValue))
-            .Returns(false);
-    }
-
-    private void SetupCacheHit(object value)
-    {
-        object? cacheValue = value;
-        _mockMemoryCache
-            .Setup(m => m.TryGetValue(It.IsAny<object>(), out cacheValue))
-            .Returns(true);
-    }
-
-    private void SetupCacheSet()
-    {
-        var mockCacheEntry = new Mock<ICacheEntry>();
-        mockCacheEntry.SetupGet(e => e.ExpirationTokens).Returns([]);
-        mockCacheEntry.SetupGet(e => e.PostEvictionCallbacks).Returns([]);
-        mockCacheEntry.SetupProperty(e => e.Value);
-        mockCacheEntry.SetupProperty(e => e.AbsoluteExpiration);
-        mockCacheEntry.SetupProperty(e => e.AbsoluteExpirationRelativeToNow);
-        mockCacheEntry.SetupProperty(e => e.SlidingExpiration);
-        _mockMemoryCache
-            .Setup(m => m.CreateEntry(It.IsAny<object>()))
-            .Returns(mockCacheEntry.Object);
-    }
-
-    private void SetupListingProvider(PagedResultModel<ResidentialObjectModel> result)
-    {
+            });
         _mockListingProvider
-            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(result);
+            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(page => page == 2), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("Unknown error on page 2."));
+
+        var exception = await Assert.ThrowsAnyAsync<Exception>(() =>
+            _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None));
+        Assert.Equal("Unknown error on page 2.", exception.Message);
+        _mockListingProvider.Verify(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(page => page == 1), It.IsAny<CancellationToken>()), Times.Once);
+        _mockListingProvider.Verify(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(page => page != 1), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private void SetupCacheRetrieval(object? cacheValue = null)
+    {
+        _mockMemoryCache
+            .Setup(m => m.TryGetValue(It.IsAny<object>(), out cacheValue))
+            .Returns(cacheValue != null);
     }
 }

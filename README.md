@@ -23,6 +23,10 @@ Real Estate Analytics is a .NET 9 console application that queries a real estate
 
 ## Rationale
 
+### Model
+- Response parsed from Partner API are assumed that they might contain null value (example: `MakelaarId` might be null)
+- Residential object identifier uses the property `Id` from Partner API response to indicate the uniqueness of the object.
+
 ### Paging
 During testing I observed that the API consistently returns a maximum of 25 objects per response, regardless of the `pagesize` parameter. When `pagesize` exceeds 25, `VolgendeUrl` appears to skip objects, it advances to the next logical page rather than the next physical response, which can result in missing records. Therefore, I set a fixed `pagesize` to 25, as this aligns with the API's actual behaviour, avoids data loss during pagination, and complicates pagination logic.
 
@@ -41,6 +45,10 @@ The partner API enforces a limit of 100 requests per minute. To stay within that
 
 ### Caching
 I implemented caching mechanism to avoid hammering the partner api further everytime the console application tries to retrieve data. Since for now, there are no concern with having live data all the time, this is the approach that I taken.
+
+### Ranking
+- Listings without a MakelaarId are excluded from the ranking
+- Agent with the same listing counts are shown in the same ranks and ordered alphabetically
 
 ## Use of AI
 
