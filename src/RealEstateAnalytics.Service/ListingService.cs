@@ -16,14 +16,13 @@ public class ListingService : IListingService
         _cache = cache;
     }
 
-    // TO-DO: Implement unit tests
-    public async Task<IEnumerable<AgentListingsModel>> GetAgentListingsOrderedByCountAsync(ListingRequestModel requestModel, CancellationToken ct = default)
+    public async Task<IEnumerable<AgentListingsResponseModel>> GetAgentListingsOrderedByCountAsync(ListingRequestModel requestModel, CancellationToken ct = default)
     {
         var cacheKey = $"listing:{requestModel.Type}:{requestModel.Area}:{requestModel.Attribute}";
         if (_cache.TryGetValue(cacheKey, out List<ResidentialObjectModel>? cachedObjectModels))
             return MapToAgentListingsModel(cachedObjectModels!, requestModel.Take);
 
-        var requestDto = new ListingRequestDto
+        var requestDto = new ListingsRequestDto
         {
             Area = requestModel.Area,
             Attribute = requestModel.Attribute,
@@ -37,7 +36,7 @@ public class ListingService : IListingService
         return MapToAgentListingsModel(objectModels, requestModel.Take);
     }
 
-    private async Task<IEnumerable<ResidentialObjectModel>> GetListingsFromAllPagesAsync(ListingRequestDto requestDto, CancellationToken ct)
+    private async Task<IEnumerable<ResidentialObjectModel>> GetListingsFromAllPagesAsync(ListingsRequestDto requestDto, CancellationToken ct)
     {
         var pageNumber = 1;
         var objectModels = new List<ResidentialObjectModel>();
@@ -59,12 +58,12 @@ public class ListingService : IListingService
         return objectModels.DistinctBy(o => o.Id);
     }
 
-    private static IEnumerable<AgentListingsModel> MapToAgentListingsModel(IEnumerable<ResidentialObjectModel> objectModels, int take)
+    private static IEnumerable<AgentListingsResponseModel> MapToAgentListingsModel(IEnumerable<ResidentialObjectModel> objectModels, int take)
     {
         return objectModels
             .Where(o => o.AgentId.HasValue)
             .GroupBy(o => o.AgentId!)
-            .Select(g => new AgentListingsModel
+            .Select(g => new AgentListingsResponseModel
             {
                 AgentName = g.FirstOrDefault()?.AgentName,
                 ListingsCount = g.Count()
@@ -73,6 +72,6 @@ public class ListingService : IListingService
             .Take(take);
     }
 
-    private async Task<PagedResultModel<ResidentialObjectModel>> GetListingAsync(ListingRequestDto requestDto, int pageNumber, CancellationToken ct) 
-        => await _listingProvider.GetListingAsync(requestDto, pageNumber, ct);
+    private async Task<PagedResultModel<ResidentialObjectModel>> GetListingAsync(ListingsRequestDto requestDto, int pageNumber, CancellationToken ct) 
+        => await _listingProvider.GetListingsPageAsync(requestDto, pageNumber, ct);
 }
