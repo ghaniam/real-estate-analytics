@@ -57,6 +57,7 @@ public class ListingServiceTests
         var responseModels = (await _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None)).ToList();
 
         Assert.Equal(5, responseModels.Count);
+        
         Assert.Equal("Agent A", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentAId)?.AgentName);
         Assert.Equal("Agent B", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentBId)?.AgentName);
         Assert.Equal("Agent C", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentCId)?.AgentName);

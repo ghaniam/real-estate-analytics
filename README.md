@@ -35,7 +35,7 @@ The partner API enforces a limit of 100 requests per minute. To stay within that
 
 **Sequential requests** were the starting point. Simple but slow, one page at a time means large result sets take a long time. Not taken forward.
 
-**Retry on Too Many Request or "Unauthozied"** acts as a reactive safety net for when the API rejects a request despite the rate limiter. It waits 30 seconds before retrying.
+**Retry on Too Many Request or "Unauthorized"** acts as a reactive safety net for when the API rejects a request despite the rate limiter. It waits 30 seconds before retrying.
 
 **A sliding window rate limiter** sits on top to proactively stay under the 100/minute API limit. It tracks requests across 4 segments of 15 seconds each, releasing queued requests gradually as old segments expire rather than waiting for a full 60-second reset. This is the approach taken.
 
@@ -44,57 +44,61 @@ The partner API enforces a limit of 100 requests per minute. To stay within that
 **Parallel requests with `Parallel.ForEachAsync`** and a bounded `MaxDegreeOfParallelism` keeps at most N requests in flight at a time. As one finishes, the next starts. This keeps the queue shallow enough that `HttpClient.Timeout` is never an issue. This is the approach taken.
 
 ### Caching
-I implemented caching mechanism to avoid hammering the partner api further everytime the console application tries to retrieve data. Since for now, there are no concern with having live data all the time, this is the approach that I taken.
+Results are cached at the query level using IMemoryCache with a 5 minute TTL. The cache key is built from the listing type, area, and search attribute, meaning Amsterdam/koop and Amsterdam/koop/tuin are cached independently. If the same query is run again within 5 minutes, the API is not called again and the cached listings are ranked directly.
+This avoids hammering the API on repeated runs during the same session, 
+which is particularly useful while exploring different top N values 
+against the same dataset.
 
 ### Presentation Layer
-I chose a console application over a web application intentionally. It runs with a single command, has no framework dependencies, and keeps the focus on the backend.
+A console application was chosen over a web application intentionally. It runs with a single command, has no framework dependencies, and keeps the focus on the backend.
 The console is interactive by design, allowing users to query any area, listing type, and search criteria rather than being hardcoded to Amsterdam and tuin specifically. Note that the search query only supports one filter (e.g. Tuin).
 
 ### Ranking
 - Listings without a MakelaarId are excluded from the ranking.
-- Agent with the same listing counts are shown in the same ranks and ordered alphabetically (Ascending).
+- Agent with the same listing count are shown in the same ranks and ordered alphabetically (Ascending).
 
 ## Use of AI
 
-I used Claude Code (Anthropic) as a thinking partner and coding assistant throughout this exercise. I leaned on AI for mechanical or repetitive work so I could spend my time on the 
-decisions that actually matter. Below are the honest account of where AI was involved
+I used Claude Code (Anthropic) as a thinking partner and coding assistant throughout this exercise. Below is an honest account of where AI was involved, what it contributed, and where the decisions were mine.
+
+## Use of AI
+
+I used Claude (Anthropic) as a thinking partner and coding assistant throughout this exercise. Below is an honest account of where AI was involved and what I contributed.
 
 ### Test Setup and Boilerplate
-Getting `HttpMessageHandler` mocking to work correctly with Moq Protected is tedious to set up from scratch. I had AI handle that scaffolding so I could focus on how to setup/arrange the tests and its verification. Every test case, every assertion, and every decision about what to cover was mine.
+Getting HttpMessageHandler mocking to work correctly with Moq Protected is tedious to set up from scratch. I had AI handle that scaffolding so I could focus on the test cases and what to verify. The test cases, assertions, and coverage decisions were mine.
 Implementation: `src/RealEstateAnalytics.DataProvider.Tests/ListingProviderTests.cs`
 
-### Mapping Assertions 
-Asserting every mapped field one by one is mechanical work. I used AI to generate those assertions faster and then went through each one against the actual mapper to confirm they were correct. AI wrote it, I reviewed and approved it.
+### Mapping Assertions
+Asserting every mapped field one by one is mechanical work. I used AI to generate those assertions faster and reviewed each one against the actual mapper to confirm correctness.
 Implementation: `src/RealEstateAnalytics.DataProvider.Tests/ListingMappingTests.cs`
 
 ### Console Prompts
-I used AI to write the first draft of the user facing prompts to move faster on the less interesting parts. The wording were reworked by me to behave the way I intended.
+I used AI to write the first draft of the user facing prompts. The wording was reworked by me to behave the way I intended.
 Implementation: `src/RealEstateAnalytics.Console/Program.cs`
 
 ### Cache
-I knew what I wanted to implement is a simple caching mechanism, so I used AI to generate the initial caching code with IMemoryCache and tweaked it to fit my needs.
+I knew what I wanted to implement, so I used AI to generate the initial caching code with IMemoryCache and tweaked it to fit my needs.
 Implementation:
 - `src/RealEstateAnalytics.Service/ListingService.cs`
 - `src/RealEstateAnalytics.Service/ServiceCollectionExtensions.cs`
 
 ### Rate Limiter Configuration
-AI walked me through the available options in Microsoft.Extensions.Http.Resilience so I could understand what each setting does. Once I understood the trade offs I decide to use a sliding window, setting QueueLimit to delay rather than reject requests, and settling on a one minute window.
-- `src/RealEstateAnalytics.DataProvider/ServiceCollectionExtensions.cs`
+AI walked me through the available options in Microsoft.Extensions.Http.Resilience so I could understand what each 
+setting does. Once I understood the trade offs I settled on a sliding window with QueueLimit set to delay rather than reject requests and a one minute window.
+Implementation: `src/RealEstateAnalytics.DataProvider/ServiceCollectionExtensions.cs`
 
 **Example**
 Manual:         |──40s requests──|──60s delay──|  next batch
 Rate limiter:   |──40s requests──|──20s  wait──|  next batch
 
 ### Parallel Request Outbound
-This is where AI was most useful as a thinking partner rather than a code writer. 
-Despite using rate limiter when sending concurrent requests, I still experience timeout issues. I worked through the problem with AI and we identified that HttpClient.Timeout starts counting when a request is created, not when it is sent. This meant requests sitting in the queue were expiring before they were ever dispatched.
-AI suggested me to increase the `HttpClient.Timeout`, but that will not solve the problem as it will also impact actual requests that were sent and having actual timeouts. The right fix is not to rely on rate limiter to send requests in batches because rate limiter purpose is to limit the request, but to introduce a mechanism that can send the request in batches. AI suggested to use `Parallel.ForEachAsync` with a bounded concurrency limit keeps the queue shallow enough.
-Implementation: 
-- `src/RealEstateAnalytics.Service/ListingService.cs`
+This is where AI was most useful as a thinking partner. Despite having a rate limiter in place, concurrent requests were still timing out. Working through the problem with AI, we identified that HttpClient.Timeout starts counting when a request is created, not when it is sent. Requests sitting in the queue were expiring before being dispatched. Increasing the timeout would mask the problem rather than solve it. The right fix was keeping the queue shallow through bounded concurrency using Parallel.ForEachAsync.
+Implementation: `src/RealEstateAnalytics.Service/ListingService.cs`
 
-### Improvements
+## Improvements
 - Centralized logger
-- Adjustable top ranks (intead of a fix 10)
+- Adjustable top ranks (instead of a fixed 10)
 
 ## How to run it
 
@@ -111,8 +115,6 @@ Implementation:
 cd src/RealEstateAnalytics.Console
 dotnet run
 ```
-
-Does that cover everything they need?
 
 ## Results
 

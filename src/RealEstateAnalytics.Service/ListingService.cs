@@ -39,7 +39,7 @@ public class ListingService : IListingService
 
         var orderedAgentListings = MapToAgentListingsModel(objectModels)
             .OrderByDescending(a => a.ListingsCount)
-            .ThenByDescending(a => a.AgentName) // To ensure consistent ordering for agents with the same listing count
+            .ThenBy(a => a.AgentName) // To ensure consistent ordering for agents with the same listing count
             .ToList();
 
         // Assign ranking based on the order after sorting by ListingsCount
