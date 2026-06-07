@@ -38,20 +38,26 @@ public class ListingService : IListingService
         }
 
         var orderedAgentListings = MapToAgentListingsModel(objectModels)
-            .OrderByDescending(a => a.ListingsCount).ToList();
+            .OrderByDescending(a => a.ListingsCount)
+            .ThenByDescending(a => a.AgentName) // To ensure consistent ordering for agents with the same listing count
+            .ToList();
 
         // Assign ranking based on the order after sorting by ListingsCount
         int rank = 1;
         for (var i = 0; i < orderedAgentListings.Count; i++)
         {
             if (i > 0 && orderedAgentListings[i].ListingsCount == orderedAgentListings[i - 1].ListingsCount)
+            {
                 orderedAgentListings[i].Ranking = orderedAgentListings[i - 1].Ranking;
+            }    
             else
+            {
                 orderedAgentListings[i].Ranking = rank;
+                rank++;
+            }
 
-            rank++;
         }
-        return orderedAgentListings;
+        return orderedAgentListings.Where(a => requestModel.Take <= 0 || a.Ranking <= requestModel.Take);
     }
 
     private async Task<IEnumerable<ResidentialObjectModel>> GetListingsFromAllPagesAsync(ListingsRequestDto requestDto, CancellationToken ct)

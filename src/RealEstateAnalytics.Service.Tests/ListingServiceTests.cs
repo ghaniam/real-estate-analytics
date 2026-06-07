@@ -37,11 +37,13 @@ public class ListingServiceTests
         var objectsAgentBId = 2;
         var objectsAgentCId = 3;
         var objectsAgentDId = 4;
+        var objectsAgentEId = 5;
         var objectsAgentA = Enumerable.Range(0, 25).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentAId, AgentName = "Agent A" }).ToList();
         var objectsAgentB = Enumerable.Range(0, 15).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentBId, AgentName = "Agent B" }).ToList();
-        var objectsAgentC = Enumerable.Range(0, 5).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentCId, AgentName = "Agent C" }).ToList();
-        var objectsAgentD = Enumerable.Range(0, 5).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentDId, AgentName = "Agent D" }).ToList();
-        var page2Items = objectsAgentB.Concat(objectsAgentC).Concat(objectsAgentD).ToList();
+        var objectsAgentC = Enumerable.Range(0, 4).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentCId, AgentName = "Agent C" }).ToList();
+        var objectsAgentD = Enumerable.Range(0, 4).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentDId, AgentName = "Agent D" }).ToList();
+        var objectsAgentE = Enumerable.Range(0, 2).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentEId, AgentName = "Agent E" }).ToList();
+        var page2Items = objectsAgentB.Concat(objectsAgentC).Concat(objectsAgentD).Concat(objectsAgentE).ToList();
 
         _mockListingProvider
             .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(p => p == 1), It.IsAny<CancellationToken>()))
@@ -54,25 +56,68 @@ public class ListingServiceTests
 
         var responseModels = (await _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None)).ToList();
 
-        Assert.Equal(4, responseModels.Count);
+        Assert.Equal(5, responseModels.Count);
         Assert.Equal("Agent A", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentAId)?.AgentName);
-        Assert.Equal(25, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentAId)?.ListingsCount);
-        Assert.Equal(1, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentAId)?.Ranking);
         Assert.Equal("Agent B", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentBId)?.AgentName);
-        Assert.Equal(15, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentBId)?.ListingsCount);
-        Assert.Equal(2, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentBId)?.Ranking);
         Assert.Equal("Agent C", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentCId)?.AgentName);
-        Assert.Equal(5, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentCId)?.ListingsCount);
-        Assert.Equal(3, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentCId)?.Ranking);
         Assert.Equal("Agent D", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentDId)?.AgentName);
-        Assert.Equal(5, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentDId)?.ListingsCount);
+        Assert.Equal("Agent E", responseModels.SingleOrDefault(r => r.AgentId == objectsAgentEId)?.AgentName);
+
+        Assert.Equal(25, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentAId)?.ListingsCount);
+        Assert.Equal(15, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentBId)?.ListingsCount);
+        Assert.Equal(4, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentCId)?.ListingsCount);
+        Assert.Equal(4, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentDId)?.ListingsCount);
+        Assert.Equal(2, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentEId)?.ListingsCount);
+
+        Assert.Equal(1, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentAId)?.Ranking);
+        Assert.Equal(2, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentBId)?.Ranking);
+        Assert.Equal(3, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentCId)?.Ranking);
         Assert.Equal(3, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentDId)?.Ranking);
+        Assert.Equal(4, responseModels.SingleOrDefault(r => r.AgentId == objectsAgentEId)?.Ranking);
 
         _mockListingProvider.Verify(p => p.GetListingsPageAsync(
             It.Is<ListingsRequestDto>(r => r.Area == requestModel.Area && r.Attribute == requestModel.Attribute && r.Type == requestModel.Type),
             It.IsAny<int>(),
             It.Is<CancellationToken>(ct => ct == CancellationToken.None)), Times.Exactly(2));
         _mockMemoryCache.Verify(m => m.CreateEntry(It.IsAny<object>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(-1, 4)]
+    [InlineData(0, 4)]
+    [InlineData(1, 1)]
+    [InlineData(2, 3)]
+    [InlineData(3, 4)]
+    public async Task GetAgentListingsOrderedByCountAsync_TakeAgents_ReturnsOk(int takeRank, int expectedCount)
+    {
+        var requestModel = new ListingRequestModel { Area = "amsterdam", Attribute = "tuin", Type = "koop", Take = takeRank };
+        var objectsAgentAId = 1;
+        var objectsAgentBId = 2;
+        var objectsAgentCId = 3;
+        var objectsAgentDId = 4;
+        var objectsAgentA = Enumerable.Range(0, 10).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentAId, AgentName = "Agent A" }).ToList();
+        var objectsAgentB = Enumerable.Range(0, 5).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentBId, AgentName = "Agent B" }).ToList();
+        var objectsAgentC = Enumerable.Range(0, 5).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentCId, AgentName = "Agent C" }).ToList();
+        var objectsAgentD = Enumerable.Range(0, 2).Select(_ => new ResidentialObjectModel { Id = Guid.NewGuid(), AgentId = objectsAgentDId, AgentName = "Agent D" }).ToList();
+        var pageItems = new List<ResidentialObjectModel>();
+        pageItems.AddRange(objectsAgentA);
+        pageItems.AddRange(objectsAgentB);
+        pageItems.AddRange(objectsAgentC);
+        pageItems.AddRange(objectsAgentD);
+
+        _mockListingProvider
+            .Setup(p => p.GetListingsPageAsync(It.IsAny<ListingsRequestDto>(), It.Is<int>(p => p == 1), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResultModel<ResidentialObjectModel> { Items = pageItems, TotalPages = 1, CurrentPage = 1, TotalCount = pageItems.Count });
+        
+        SetupCacheRetrieval();
+
+        var responseModels = (await _listingService.GetAgentListingsOrderedByCountAsync(requestModel, CancellationToken.None)).ToList();
+
+        Assert.Equal(expectedCount, responseModels.Count);
+        if(takeRank > 0)
+        {
+            Assert.Contains(responseModels.Select(x => x.Ranking), r => Enumerable.Range(1, takeRank).Contains(r));
+        }
     }
 
     [Fact]
