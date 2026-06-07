@@ -59,10 +59,6 @@ The console is interactive by design, allowing users to query any area, listing 
 
 ## Use of AI
 
-I used Claude Code (Anthropic) as a thinking partner and coding assistant throughout this exercise. Below is an honest account of where AI was involved, what it contributed, and where the decisions were mine.
-
-## Use of AI
-
 I used Claude (Anthropic) as a thinking partner and coding assistant throughout this exercise. Below is an honest account of where AI was involved and what I contributed.
 
 ### Test Setup and Boilerplate
@@ -89,8 +85,8 @@ setting does. Once I understood the trade offs I settled on a sliding window wit
 Implementation: `src/RealEstateAnalytics.DataProvider/ServiceCollectionExtensions.cs`
 
 **Example**
-Manual:         |──40s requests──|──60s delay──|  next batch
-Rate limiter:   |──40s requests──|──20s  wait──|  next batch
+- Manual:         |──40s requests──|──60s delay──|  next batch
+- Rate limiter:   |──40s requests──|──20s  wait──|  next batch
 
 ### Parallel Request Outbound
 This is where AI was most useful as a thinking partner. Despite having a rate limiter in place, concurrent requests were still timing out. Working through the problem with AI, we identified that HttpClient.Timeout starts counting when a request is created, not when it is sent. Requests sitting in the queue were expiring before being dispatched. Increasing the timeout would mask the problem rather than solve it. The right fix was keeping the queue shallow through bounded concurrency using Parallel.ForEachAsync.
