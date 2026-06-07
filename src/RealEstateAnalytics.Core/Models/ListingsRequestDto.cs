@@ -1,6 +1,6 @@
 namespace RealEstateAnalytics.Core.Models;
 
-public class ListingRequestDto
+public class ListingsRequestDto
 {
     public string? Type { get; set; }
     public string? Area { get; set; }

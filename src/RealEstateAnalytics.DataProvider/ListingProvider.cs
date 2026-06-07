@@ -19,9 +19,9 @@ public class ListingProvider : IListingProvider
         _options = options.Value;
     }
 
-    public async Task<PagedResultModel<ResidentialObjectModel>> GetListingAsync(ListingRequestDto listingRequestModel, int pageNumber, CancellationToken ct = default)
+    public async Task<PagedResultModel<ResidentialObjectModel>> GetListingsPageAsync(ListingsRequestDto listingsRequestModel, int pageNumber, CancellationToken ct = default)
     {
-        var url = $"{_options.BaseUrl}/{_options.ApiKey}/?{BuildQueryParams(listingRequestModel, pageNumber)}";
+        var url = $"{_options.BaseUrl}/{_options.ApiKey}/?{BuildQueryParams(listingsRequestModel, pageNumber)}";
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.TryAddWithoutValidation("Accept", "*/*");
         using var response = await _httpClient.SendAsync(request, ct);
@@ -31,7 +31,7 @@ public class ListingProvider : IListingProvider
         return partnerResponse!.MapToModel();
     }
 
-    private string BuildQueryParams(ListingRequestDto listingRequestModel, int pageNumber)
+    private string BuildQueryParams(ListingsRequestDto listingRequestModel, int pageNumber)
     {
         var queryParams = new List<string>();
         if (!string.IsNullOrWhiteSpace(listingRequestModel.Type))

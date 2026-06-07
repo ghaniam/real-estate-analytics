@@ -35,7 +35,7 @@ public class ListingProviderTests
     [Fact]
     public async Task GetListingAsync_ReturnsOk()
     {
-        var request = new ListingRequestDto
+        var request = new ListingsRequestDto
         {
             Type = "koop",
             Area = "amsterdam",
@@ -67,7 +67,7 @@ public class ListingProviderTests
         };
         SetupSendAsync(JsonSerializer.Serialize(dto));
 
-        var result = await _listingProvider.GetListingAsync(request, pageNumber);
+        var result = await _listingProvider.GetListingsPageAsync(request, pageNumber);
 
         Assert.NotNull(result);
         Assert.NotEmpty(result.Items);
@@ -84,7 +84,7 @@ public class ListingProviderTests
     [Fact]
     public async Task GetListingAsync_WithEmptyObjects_ReturnsOk()
     {
-        var request = new ListingRequestDto
+        var request = new ListingsRequestDto
         {
             Type = "koop",
             Area = "Non-existing Area"
@@ -101,7 +101,7 @@ public class ListingProviderTests
         };
         SetupSendAsync(JsonSerializer.Serialize(dto));
 
-        var result = await _listingProvider.GetListingAsync(request, pageNumber: 1);
+        var result = await _listingProvider.GetListingsPageAsync(request, pageNumber: 1);
 
         Assert.NotNull(result);
         Assert.Empty(result.Items);
@@ -123,7 +123,7 @@ public class ListingProviderTests
     [InlineData(HttpStatusCode.GatewayTimeout)]
     public async Task GetListingAsync_WithNonSuccessfulHttpResponse_Throws(HttpStatusCode statusCode)
     {
-        var request = new ListingRequestDto
+        var request = new ListingsRequestDto
         {
             Type = "koop",
             Area = "amsterdam",
@@ -131,7 +131,7 @@ public class ListingProviderTests
         };
         SetupSendAsync(null, statusCode);
 
-        await Assert.ThrowsAsync<HttpRequestException>(() => _listingProvider.GetListingAsync(request, pageNumber: 1));
+        await Assert.ThrowsAsync<HttpRequestException>(() => _listingProvider.GetListingsPageAsync(request, pageNumber: 1));
 
         VerifySendAsync(Times.Once());
     }
@@ -139,7 +139,7 @@ public class ListingProviderTests
     [Fact]
     public async Task GetListingAsync_WithHttpClientException_Throws()
     {
-        var request = new ListingRequestDto
+        var request = new ListingsRequestDto
         {
             Type = "koop",
             Area = "amsterdam",
@@ -151,7 +151,7 @@ public class ListingProviderTests
             .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
             .ThrowsAsync(exception);
 
-        var thrown = await Assert.ThrowsAnyAsync<Exception>(() => _listingProvider.GetListingAsync(request, pageNumber: 1));
+        var thrown = await Assert.ThrowsAnyAsync<Exception>(() => _listingProvider.GetListingsPageAsync(request, pageNumber: 1));
 
         Assert.IsType(exception.GetType(), thrown);
         Assert.Equal(exception.Message, thrown.Message);
