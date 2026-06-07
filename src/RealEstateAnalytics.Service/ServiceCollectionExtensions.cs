@@ -10,6 +10,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddMemoryCache();
         services.AddScoped<IListingService, ListingService>();
         return services;
     }

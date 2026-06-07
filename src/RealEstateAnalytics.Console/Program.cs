@@ -25,6 +25,7 @@ var listingService = scope.ServiceProvider.GetRequiredService<IListingService>()
 Console.WriteLine("=== Real Estate Analytics ===");
 Console.WriteLine();
 
+var shouldContinue = true;
 do
 {
     Console.WriteLine("Listing type (e.g. koop, huur) [default: koop]:");
@@ -45,13 +46,14 @@ do
     ListingRequestModel requestModel = new()
     {
         Type = string.IsNullOrWhiteSpace(type) ? "koop" : type,
-        Area = string.IsNullOrWhiteSpace(area) ? "nederland" : area,
-        SearchQuery = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery,
+        Area = string.IsNullOrWhiteSpace(area) ? null : area,
+        Attribute = string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery,
         Take = take
     };
 
     try
     {
+        // (Optional) TO-DO: show a loading or wating animation
         var results = await listingService.GetAgentListingsOrderedByCountAsync(requestModel);
         var resultList = results.ToList();
         if (resultList.Count > 0)
@@ -67,11 +69,14 @@ do
     catch (Exception ex)
     {
         Console.WriteLine($"Something went wrong: {ex.Message}");
+        Console.WriteLine("Exception: {0}", ex);
     }
 
     Console.WriteLine();
-    Console.WriteLine("Do you want to continue? (Y/N)");
+    Console.WriteLine("Do you want to continue? (Y/N) (continue by default unless stated otherwise)");
+    var continueInput = Console.ReadLine()?.Trim();
+    shouldContinue = string.IsNullOrEmpty(continueInput) || continueInput.Equals("Y", StringComparison.OrdinalIgnoreCase);
 }
-while (Console.ReadLine()?.Trim().Equals("Y", StringComparison.OrdinalIgnoreCase) == true);
+while (shouldContinue);
 
 Console.WriteLine("Real Estate Analytic has ended.");

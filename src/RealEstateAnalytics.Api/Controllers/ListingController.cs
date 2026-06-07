@@ -1,16 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
-using RealEstateAnalytics.Core.Interfaces;
 
 namespace RealEstateAnalytics.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ListingController(IListingProvider listingProvider) : ControllerBase
+public class ListingController() : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetProperties([FromQuery] int page = 1)
+    public async Task<IActionResult> GetProperties()
     {
-        var result = await listingProvider.GetListingAsync(null);
-        return Ok(result);
+        return Ok();
     }
 }
