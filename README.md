@@ -21,10 +21,10 @@ Real Estate Analytics is a .NET 9 console application that queries a real estate
 | `RealEstateAnalytics.Console` | Interactive console entry point |
 | `RealEstateAnalytics.DataProvider.Tests` | Unit tests for the data provider layer |
 
-## Rationale
+## Approaches Rationale
 
 ### Model
-- Response parsed from Partner API are assumed that they might contain null value (example: `MakelaarId` might be null)
+- Response parsed from Partner API are assumed that they might contain null value (example: `MakelaarId` might be null).
 - Residential object identifier uses the property `Id` from Partner API response to indicate the uniqueness of the object.
 
 ### Paging
@@ -46,9 +46,13 @@ The partner API enforces a limit of 100 requests per minute. To stay within that
 ### Caching
 I implemented caching mechanism to avoid hammering the partner api further everytime the console application tries to retrieve data. Since for now, there are no concern with having live data all the time, this is the approach that I taken.
 
+### Presentation Layer
+I chose a console application over a web application intentionally. It runs with a single command, has no framework dependencies, and keeps the focus on the backend.
+The console is interactive by design, allowing users to query any area, listing type, and search criteria rather than being hardcoded to Amsterdam and tuin specifically. Note that the search query only supports one filter (e.g. Tuin).
+
 ### Ranking
-- Listings without a MakelaarId are excluded from the ranking
-- Agent with the same listing counts are shown in the same ranks and ordered alphabetically
+- Listings without a MakelaarId are excluded from the ranking.
+- Agent with the same listing counts are shown in the same ranks and ordered alphabetically (Ascending).
 
 ## Use of AI
 
@@ -88,8 +92,58 @@ AI suggested me to increase the `HttpClient.Timeout`, but that will not solve th
 Implementation: 
 - `src/RealEstateAnalytics.Service/ListingService.cs`
 
+### Improvements
+- Centralized logger
+- Adjustable top ranks (intead of a fix 10)
+
 ## How to run it
-TO-DO
+
+**Prerequisites**
+- .NET 9 SDK
+
+**Setup**
+1. Clone the repository
+2. Open `src/RealEstateAnalytics.Console/appsettings.json`
+3. Replace `YOUR_API_KEY_HERE` with your Funda Partner API key
+
+**Run**
+```bash
+cd src/RealEstateAnalytics.Console
+dotnet run
+```
+
+Does that cover everything they need?
 
 ## Results
-TO-DO
+
+### Top 10 Makelaars in Amsterdam (For Sale)
+*Fetched on: 2026-06-07 18:35:32*
+
+| Rank | Agent                              | Listings |
+|------|------------------------------------|----------|
+| 1    | Heeren Makelaars                   | 185      |
+| 2    | Broersma Wonen                     | 144      |
+| 3    | Hallie & Van Klooster Makelaardij  | 117      |
+| 4    | Eefje Voogd Makelaardij            | 110      |
+| 5    | Ramón Mossel Makelaardij o.g. B.V. | 101      |
+| 6    | Openbare Makelaardij               | 86       |
+| 7    | DSTRCT \| Forbes Global Properties | 85       |
+| 8    | VON POLL REAL ESTATE               | 78       |
+| 9    | Linger OG Makelaars en Taxateurs   | 76       |
+| 10   | Carla van den Brink B.V.           | 73       |
+
+### Top 10 Makelaars in Amsterdam (For Sale with Tuin)
+*Fetched on: 2026-06-07 18:36:40*
+
+| Rank | Agent                              | Listings |
+|------|------------------------------------|----------|
+| 1    | Broersma Wonen                     | 40       |
+| 2    | DSTRCT \| Forbes Global Properties | 30       |
+| 3    | Linger OG Makelaars en Taxateurs   | 27       |
+| 4    | Heeren Makelaars                   | 26       |
+| 5    | VON POLL REAL ESTATE               | 23       |
+| 6    | Hoekstra en Van Eck Amsterdam Noord| 22       |
+| 7    | Carla van den Brink B.V.           | 21       |
+| 8    | Hallie & Van Klooster Makelaardij  | 18       |
+| 9    | Nieuw West Makelaardij B.V.        | 17       |
+| 10   | Makelaarsland                      | 16       |
