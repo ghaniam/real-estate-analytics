@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Logging;
 using Polly;
 using RealEstateAnalytics.Core.Configuration;
 using RealEstateAnalytics.Core.Interfaces;
@@ -13,6 +14,8 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDataProvider(this IServiceCollection services, IConfiguration configuration)
     {
+        var loggerFactory = services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+        var logger = loggerFactory.CreateLogger("RealEstateAnalytics.DataProvider");
         services.Configure<PartnerApiConfiguration>(configuration.GetSection(PartnerApiConfiguration.SectionName));
 
         services.AddHttpClient<IListingProvider, ListingProvider>(client =>
@@ -34,7 +37,10 @@ public static class ServiceCollectionExtensions
                     .Handle<TaskCanceledException>(),
                 OnRetry = args =>
                 {
-                    Console.WriteLine($"[Retry] Attempt {args.AttemptNumber + 1}, delay {args.RetryDelay.TotalSeconds}s, reason: {args.Outcome.Exception?.Message ?? args.Outcome.Result?.StatusCode.ToString()}");
+                    logger.LogWarning("Retry - Attempt {AttemptNumber}, delay {RetryDelaySecs}s, reason: {Reason}",
+                        args.AttemptNumber + 1,
+                        args.RetryDelay.TotalSeconds,
+                        args.Outcome.Exception?.Message ?? args.Outcome.Result?.StatusCode.ToString());
                     return ValueTask.CompletedTask;
                 }
             });
