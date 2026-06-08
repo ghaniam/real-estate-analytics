@@ -1,5 +1,7 @@
 # real-estate-analytics
 
+![Continuous Integration Pipeline](https://github.com/ghaniam/real-estate-analytics/actions/workflows/ci.yml/badge.svg)
+
 ## About
 
 Real Estate Analytics is a .NET 9 console application that queries a real estate partner API to identify which agents have the most active listings in a given area. Given a listing type, location, and optional search criteria, the application fetches all matching listings across multiple pages, groups them by agent, and prints a ranked leaderboard of agents ordered by listing count.
@@ -20,6 +22,8 @@ Real Estate Analytics is a .NET 9 console application that queries a real estate
 | `RealEstateAnalytics.Service` | Business logic — aggregation and ranking |
 | `RealEstateAnalytics.Console` | Interactive console entry point |
 | `RealEstateAnalytics.DataProvider.Tests` | Unit tests for the data provider layer |
+
+A GitHub Actions CI pipeline builds the solution and runs all tests on every pull request and push to main.
 
 ## Approaches Rationale
 
