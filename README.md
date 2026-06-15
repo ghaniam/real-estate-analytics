@@ -99,6 +99,7 @@ Implementation: `src/RealEstateAnalytics.Service/ListingService.cs`
 ## Improvements
 - Centralized logger
 - Adjustable top ranks (instead of a fixed 10)
+- More configurables
 
 ## How to run it
 
